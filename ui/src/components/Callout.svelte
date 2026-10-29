@@ -3,12 +3,12 @@
 </script>
 
 <script lang="ts">
-  import { CircleCheck, Info, ShieldAlert, TriangleAlert } from "@lucide/svelte";
+  import { CheckCircle, Info, ShieldWarning, Warning } from "../lib/icons";
   import type { Snippet } from "svelte";
 
   let { tone, title, children }: { tone: CalloutTone; title: string; children: Snippet } = $props();
 
-  const ICONS = { safe: CircleCheck, review: TriangleAlert, danger: ShieldAlert, info: Info };
+  const ICONS = { safe: CheckCircle, review: Warning, danger: ShieldWarning, info: Info };
   const Icon = $derived(ICONS[tone]);
 </script>
 

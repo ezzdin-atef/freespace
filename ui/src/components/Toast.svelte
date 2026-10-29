@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { CircleCheck, CircleX, TriangleAlert, X } from "@lucide/svelte";
+  import { CheckCircle, Warning, X, XCircle } from "../lib/icons";
   import { session } from "../lib/session.svelte";
 
-  const ICONS = { safe: CircleCheck, review: TriangleAlert, danger: CircleX };
+  const ICONS = { safe: CheckCircle, review: Warning, danger: XCircle };
 
   // Each new toast restarts the 8 s timer.
   $effect(() => {

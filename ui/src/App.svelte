@@ -1,17 +1,6 @@
 <script lang="ts">
-  import {
-    AppWindow,
-    Broom,
-    ClipboardList,
-    File,
-    House,
-    LayoutGrid,
-    Play,
-    Shield,
-    ShieldCheck,
-    Sparkles,
-    Square,
-  } from "@lucide/svelte";
+  import { IconContext } from "phosphor-svelte";
+  import { AppWindow, Broom, Clipboard, File, House, Play, Shield, ShieldCheck, SpaceUsage, Sparkle, Stop } from "./lib/icons";
   import { session, type View } from "./lib/session.svelte";
   import { categoryIcon } from "./lib/icons";
   import { fmtCompact, fmtCount, fmtSeconds, fmtSize } from "./lib/format";
@@ -47,6 +36,8 @@
   });
 </script>
 
+<!-- Every icon in the app is drawn in Phosphor's duotone weight unless it asks for another. -->
+<IconContext values={{ weight: "duotone" }}>
 <header>
   <div class="logo">
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
@@ -60,7 +51,7 @@
   <div class="sep"></div>
   <DrivePicker />
   {#if session.scanning}
-    <Button label="Stop scan" icon={Square} onclick={() => session.stopScan()} />
+    <Button label="Stop scan" icon={Stop} onclick={() => session.stopScan()} />
   {:else}
     <Button label="Scan" icon={Play} primary title="Scan the selected drive or folder" onclick={() => session.startScan()} />
   {/if}
@@ -103,7 +94,7 @@
         />
       {/each}
       <NavSection label="Explore" />
-      <NavItem icon={LayoutGrid} label="Space usage" active={is("usage")} onclick={() => session.go({ page: "usage" })} />
+      <NavItem icon={SpaceUsage} label="Space usage" active={is("usage")} onclick={() => session.go({ page: "usage" })} />
       <NavItem
         icon={File}
         label="Large files"
@@ -111,11 +102,11 @@
         active={is("large")}
         onclick={() => session.go({ page: "large" })}
       />
-      <NavItem icon={Sparkles} label="Full clean" active={is("full")} onclick={() => session.go({ page: "full" })} />
+      <NavItem icon={Sparkle} label="Full clean" active={is("full")} onclick={() => session.go({ page: "full" })} />
     {/if}
     {#if session.hasReport}
       {#if !session.scan}<NavSection label="Explore" />{/if}
-      <NavItem icon={ClipboardList} label="Last report" active={is("report")} onclick={() => session.go({ page: "report" })} />
+      <NavItem icon={Clipboard} label="Last report" active={is("report")} onclick={() => session.go({ page: "report" })} />
     {/if}
     <NavSection label="Programs" />
     <NavItem
@@ -150,6 +141,7 @@
 
 <Dialogs />
 <Toast />
+</IconContext>
 
 <style>
   :global(#app) {

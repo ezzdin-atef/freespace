@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AppWindow, Search, Store } from "@lucide/svelte";
+  import { AppWindow, Search, Store } from "../lib/icons";
   import type { AppRow } from "../lib/api";
   import { session, type AppShow, type Sort } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";

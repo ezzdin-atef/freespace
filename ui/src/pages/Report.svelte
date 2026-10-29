@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CircleCheck, ClipboardList, RotateCw } from "@lucide/svelte";
+  import { CheckCircle, Clipboard, Rescan } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSeconds, fmtSize } from "../lib/format";
   import Button from "../components/Button.svelte";
@@ -12,19 +12,19 @@
 
 {#if !r}
   <div class="empty">
-    <span class="tile"><ClipboardList size={26} /></span>
+    <span class="tile"><Clipboard size={26} /></span>
     <b>Nothing cleaned yet</b>
     <p>After you clean, the results appear here.</p>
   </div>
 {:else}
   <PageHeader
-    icon={ClipboardList}
+    icon={Clipboard}
     title="Cleaning report"
     meta="{fmtSeconds(r.elapsed_ms)}{r.cancelled ? '  ·  stopped early' : ''}"
     desc={r.used_trash ? "Items were moved to the Recycle Bin - the space is freed when you empty it." : "Rescan to refresh the sizes."}
   >
     {#snippet actions()}
-      <Button label="Rescan" icon={RotateCw} primary disabled={session.busy} onclick={() => session.startScan()} />
+      <Button label="Rescan" icon={Rescan} primary disabled={session.busy} onclick={() => session.startScan()} />
     {/snippet}
   </PageHeader>
 
@@ -41,7 +41,7 @@
     <Card pad={18}>
       {#each r.maintenance as m, i (i)}<p class="maint">{m}</p>{/each}
       {#if r.skipped.length === 0 && r.failed === 0 && r.maintenance.length === 0}
-        <p class="ok"><CircleCheck size={18} /> Everything selected was removed.</p>
+        <p class="ok"><CheckCircle size={18} /> Everything selected was removed.</p>
       {/if}
       {#if r.skipped.length > 0}
         <h3 class="danger">Protected items that were skipped</h3>

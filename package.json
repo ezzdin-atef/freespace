@@ -1,5 +1,5 @@
 {
-  "name": "logcleaner-ui",
+  "name": "freespace-ui",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,8 +11,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@lucide/svelte": "^1.64.0",
-    "@tauri-apps/api": "^2.12.4"
+    "@tauri-apps/api": "^2.12.4",
+    "phosphor-svelte": "^3.1.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

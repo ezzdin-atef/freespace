@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AppWindow, Broom, ListX, Square, SquareCheck, Trash2 } from "@lucide/svelte";
+  import { AppWindow, Broom, CheckSquare, ListRemove, Square, Stop, Trash } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
   import Button from "./Button.svelte";
@@ -16,7 +16,7 @@
 
 {#if c && (c.kind === "clean" || c.kind === "leftovers")}
   {@const plan = c.plan}
-  <Modal icon={Trash2} tone="danger" title="Delete {fmtSize(plan.bytes)}?" onclose={() => session.cancelConfirm()}>
+  <Modal icon={Trash} tone="danger" title="Delete {fmtSize(plan.bytes)}?" onclose={() => session.cancelConfirm()}>
     <p>
       {fmtCount(plan.count)}
       {plan.count === 1 ? "item" : "items"} will be {session.useTrash ? "moved to the Recycle Bin" : "permanently deleted"}.
@@ -45,28 +45,28 @@
 
     {#snippet footer()}
       <button class="trash" onclick={() => (session.useTrash = !session.useTrash)}>
-        {#if session.useTrash}<SquareCheck size={16} />{:else}<Square size={16} />{/if}
+        {#if session.useTrash}<CheckSquare size={16} />{:else}<Square size={16} />{/if}
         Move to the Recycle Bin instead
       </button>
       <span class="grow"></span>
       <Button label="Cancel" onclick={() => session.cancelConfirm()} />
       <!-- No autofocus on Delete: a stray Enter must never delete. -->
-      <Button label="Delete" icon={Trash2} variant="danger" onclick={() => session.confirmGo()} />
+      <Button label="Delete" icon={Trash} variant="danger" onclick={() => session.confirmGo()} />
     {/snippet}
   </Modal>
 {:else if c?.kind === "uninstall"}
-  <Modal icon={Trash2} tone="danger" title="Uninstall {appName(c.appId)}?" width={480} onclose={() => session.cancelConfirm()}>
+  <Modal icon={Trash} tone="danger" title="Uninstall {appName(c.appId)}?" width={480} onclose={() => session.cancelConfirm()}>
     <p>
       Windows runs the app's own uninstaller. Follow its window. When it finishes, Freespace lists the folders it left
       behind so you can delete them too.
     </p>
     {#snippet footer()}
       <Button label="Cancel" onclick={() => session.cancelConfirm()} />
-      <Button label="Uninstall" icon={Trash2} variant="danger" onclick={() => session.confirmGo()} />
+      <Button label="Uninstall" icon={Trash} variant="danger" onclick={() => session.confirmGo()} />
     {/snippet}
   </Modal>
 {:else if c?.kind === "entry"}
-  <Modal icon={ListX} tone="review" title="Remove {appName(c.appId)} from the list?" width={480} onclose={() => session.cancelConfirm()}>
+  <Modal icon={ListRemove} tone="review" title="Remove {appName(c.appId)} from the list?" width={480} onclose={() => session.cancelConfirm()}>
     <p>
       Its uninstaller is missing, so this only deletes its entry in Windows' installed programs list. Delete its folders
       afterwards from the panel on the right.
@@ -87,7 +87,7 @@
     </p>
     <p class="current" title={p.current}>{p.current || " "}</p>
     {#snippet footer()}
-      <Button label="Stop" icon={Square} onclick={() => session.stopClean()} />
+      <Button label="Stop" icon={Stop} onclick={() => session.stopClean()} />
     {/snippet}
   </Modal>
 {/if}

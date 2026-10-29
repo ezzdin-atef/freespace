@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Folder, HardDrive, Play } from "@lucide/svelte";
+  import { Folder, HardDrive, Play } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { driveLabel, fmtSize } from "../lib/format";
   import Button from "../components/Button.svelte";

@@ -13,7 +13,7 @@
 </script>
 
 <script lang="ts" generics="T, S extends string">
-  import { ArrowDown } from "@lucide/svelte";
+  import { ArrowDown } from "../lib/icons";
   import type { Snippet } from "svelte";
   import Checkbox from "./Checkbox.svelte";
 
@@ -27,6 +27,7 @@
     checked,
     checkable,
     ontoggle,
+    onsetall,
     focused = null,
     onfocus,
     onopen,
@@ -42,6 +43,8 @@
     checked?: (row: T) => boolean;
     checkable?: (row: T) => boolean;
     ontoggle?: (row: T) => void;
+    /** When given, the header checkbox ticks (or unticks) every tickable row currently shown. */
+    onsetall?: (rows: T[], on: boolean) => void;
     focused?: string | number | null;
     onfocus?: (row: T) => void;
     onopen?: (row: T) => void;
@@ -59,6 +62,11 @@
   const last = $derived(Math.min(Math.ceil((scrollTop + height) / ROW_H) + OVERSCAN, rows.length));
   const slice = $derived(rows.slice(first, last));
 
+  // Header checkbox: on when every tickable row shown is ticked, mixed when only some are.
+  const tickable = $derived(checked && onsetall ? rows.filter((r) => !checkable || checkable(r)) : []);
+  const tickedCount = $derived(checked ? tickable.filter((r) => checked(r)).length : 0);
+  const allOn = $derived(tickable.length > 0 && tickedCount === tickable.length);
+
   /** Scrolls just enough to show row `i`. */
   export function scrollToIndex(i: number) {
     if (!body) return;
@@ -74,12 +82,25 @@
 
 <div class="table" style:--cols={template}>
   <div class="head row">
-    {#if checked}<span></span>{/if}
+    {#if checked}
+      <span class="td check">
+        {#if onsetall}
+          <Checkbox
+            checked={allOn}
+            mixed={tickedCount > 0 && !allOn}
+            disabled={tickable.length === 0}
+            label={allOn ? "Untick all shown" : "Tick all shown"}
+            title={allOn ? "Untick all shown rows" : "Tick all shown rows (protected ones are skipped)"}
+            onchange={() => onsetall(tickable, !allOn)}
+          />
+        {/if}
+      </span>
+    {/if}
     {#each columns as c (c.key)}
       {#if c.sort && onsort}
         <button class="th" class:right={c.right} class:on={sort === c.sort} onclick={() => onsort(c.sort!)}>
           {c.title}
-          {#if sort === c.sort}<ArrowDown size={12} strokeWidth={2.5} />{/if}
+          {#if sort === c.sort}<ArrowDown size={12} />{/if}
         </button>
       {:else}
         <span class="th" class:right={c.right}>{c.title}</span>

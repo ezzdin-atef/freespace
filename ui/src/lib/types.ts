@@ -1,4 +1,4 @@
-import type { LucideIcon } from "@lucide/svelte";
+import type { HouseIcon } from "phosphor-svelte";
 
-/** A Lucide icon component, passed as a prop to buttons, nav items and fields. */
-export type IconComponent = LucideIcon;
+/** An icon component from lib/icons.ts, passed as a prop to buttons, nav items and fields. */
+export type IconComponent = typeof HouseIcon;

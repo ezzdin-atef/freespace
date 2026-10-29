@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Broom, RotateCcw, Sparkles } from "@lucide/svelte";
+  import { Broom, Sparkle, Undo } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { categoryIcon } from "../lib/icons";
   import { fmtCount, fmtSize } from "../lib/format";
@@ -32,7 +32,7 @@
 <div class="page">
   <section class="content">
     <PageHeader
-      icon={Sparkles}
+      icon={Sparkle}
       title="Full clean"
       desc="Everything that is safe to remove, plus Windows leftovers only needed for rollback or troubleshooting. Your documents, photos, downloads, installed programs, large files, Python venvs and JS dist folders are not touched."
     />
@@ -93,7 +93,7 @@
         Cleaning can't remove installed programs or registry clutter. Windows' own Reset this PC reinstalls Windows and
         removes all apps (you can keep your files). Back up first.
       </p>
-      <div class="reset"><Button label="Open Reset this PC" icon={RotateCcw} onclick={() => session.resetPc()} /></div>
+      <div class="reset"><Button label="Open Reset this PC" icon={Undo} onclick={() => session.resetPc()} /></div>
     </Callout>
   </aside>
 </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowDownAZ, ArrowDownWideNarrow, Check, Layers } from "@lucide/svelte";
+  import { Check, SortByGroup, SortByName, SortBySize } from "../lib/icons";
   import type { Sort } from "../lib/session.svelte";
   import Select from "./Select.svelte";
 
@@ -14,9 +14,9 @@
   let root: HTMLDivElement;
 
   const options = $derived([
-    { key: "size" as const, icon: ArrowDownWideNarrow, label: "Size", detail: "largest first" },
-    { key: "name" as const, icon: ArrowDownAZ, label: "Name", detail: "A to Z" },
-    ...(groupLabel ? [{ key: "group" as const, icon: Layers, label: groupLabel, detail: "" }] : []),
+    { key: "size" as const, icon: SortBySize, label: "Size", detail: "largest first" },
+    { key: "name" as const, icon: SortByName, label: "Name", detail: "A to Z" },
+    ...(groupLabel ? [{ key: "group" as const, icon: SortByGroup, label: groupLabel, detail: "" }] : []),
   ]);
   const current = $derived(options.find((o) => o.key === value) ?? options[0]);
 

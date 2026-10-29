@@ -173,6 +173,21 @@ class Session {
     }
   }
 
+  /** Ticks or unticks the given findings (protected ones are never ticked). */
+  setTicked(rows: FindingRow[], on: boolean) {
+    for (const f of rows) {
+      if (!on) this.selected.delete(f.id);
+      else if (f.safety !== "protected") this.selected.add(f.id);
+    }
+  }
+
+  setFolders(rows: UsageRow[], on: boolean) {
+    for (const r of rows) {
+      if (!on) this.selectedFolders.delete(r.path);
+      else if (r.safety !== "protected") this.selectedFolders.set(r.path, r.size);
+    }
+  }
+
   selectNone() {
     this.selected.clear();
     this.selectedFolders.clear();

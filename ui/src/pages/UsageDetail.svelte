@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowRight, Check, FolderOpen, X } from "@lucide/svelte";
+  import { ArrowRight, Check, FolderOpen, X } from "../lib/icons";
   import * as api from "../lib/api";
   import type { UsageLevel, UsageRow } from "../lib/api";
   import { session } from "../lib/session.svelte";

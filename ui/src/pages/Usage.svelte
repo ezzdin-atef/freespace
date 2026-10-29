@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronRight, Folder, FolderOpen, HardDrive, LayoutGrid, Search } from "@lucide/svelte";
+  import { CaretRight, Folder, FolderOpen, HardDrive, Search, SpaceUsage } from "../lib/icons";
   import type { UsageRow } from "../lib/api";
   import { session, type Show, type Sort } from "../lib/session.svelte";
   import { fmtCompact, fmtSize } from "../lib/format";
@@ -90,7 +90,7 @@
 <div class="page">
   <section class="content">
     <PageHeader
-      icon={LayoutGrid}
+      icon={SpaceUsage}
       title="Space usage"
       meta={level ? `${fmtSize(level.size)}  ·  ${fmtCompact(level.files)} files` : ""}
       desc="Biggest folders first. Double-click or Enter opens a folder, Backspace goes back up. Tick any folder to delete it; protected folders can't be ticked."
@@ -101,7 +101,7 @@
         <HardDrive size={14} />{session.scan?.root}
       </button>
       {#each session.usagePath as p, i (p)}
-        <ChevronRight size={14} />
+        <CaretRight size={14} />
         <button class:on={i === session.usagePath.length - 1} onclick={() => session.usageUp(i + 1)}>{crumbName(p)}</button>
       {/each}
     </nav>
@@ -135,6 +135,7 @@
             session.usageFocus = c.path;
             session.toggleFolder(c);
           }}
+          onsetall={(rows, on) => session.setFolders(rows, on)}
           focused={session.usageFocus}
           onfocus={(c) => (session.usageFocus = c.path)}
           onopen={open}

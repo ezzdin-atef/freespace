@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Check, FolderOpen, X } from "@lucide/svelte";
+  import { Check, FolderOpen, X } from "../lib/icons";
   import type { FindingRow } from "../lib/api";
   import { session } from "../lib/session.svelte";
   import { categoryIcon } from "../lib/icons";

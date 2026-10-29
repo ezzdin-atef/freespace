@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Info, Square, SquareCheck, Trash2, TriangleAlert } from "@lucide/svelte";
+  import { CheckSquare, Info, Square, Trash, Warning } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { fmtSize } from "../lib/format";
   import Button from "./Button.svelte";
@@ -14,20 +14,20 @@
     <b>{sel.count} selected</b>
     <strong>{fmtSize(sel.bytes)}</strong>
     {#if sel.review > 0}
-      <span class="review"><TriangleAlert size={15} /> {sel.review} to review</span>
+      <span class="review"><Warning size={15} /> {sel.review} to review</span>
     {/if}
     <span class="grow"></span>
     <Button label="Clear" variant="dark" onclick={() => session.selectNone()} />
     <Button
       label="Recycle Bin"
-      icon={session.useTrash ? SquareCheck : Square}
+      icon={session.useTrash ? CheckSquare : Square}
       variant="dark"
       title="Move to the Recycle Bin instead of deleting. Recoverable, but slower - the space is only freed after you empty the bin."
       onclick={() => (session.useTrash = !session.useTrash)}
     />
     <Button
       label="Delete {fmtSize(sel.bytes)}"
-      icon={Trash2}
+      icon={Trash}
       variant="danger"
       disabled={session.busy}
       onclick={() => session.requestClean()}

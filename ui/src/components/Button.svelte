@@ -39,7 +39,7 @@
   style:width={width ? `${width}px` : undefined}
   {onclick}
 >
-  {#if Icon}<Icon size={14} strokeWidth={2.25} />{/if}
+  {#if Icon}<Icon size={16} />{/if}
   {label}
 </button>
 

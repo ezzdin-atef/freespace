@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { ChevronDown } from "@lucide/svelte";
+  import { CaretDown } from "../lib/icons";
   import type { IconComponent } from "../lib/types";
 
-  // Trigger only for now; the popup (drives + folder) arrives with the scan flow in phase 3.
+  // The trigger button of a dropdown; the popup belongs to the caller (DrivePicker, SortMenu).
   let {
     icon: Icon,
     value,
@@ -23,7 +23,7 @@
 <button class="select" style:width="{width}px" {disabled} {title} {onclick}>
   {#if Icon}<Icon size={16} />{/if}
   <span>{value}</span>
-  <ChevronDown size={16} />
+  <CaretDown size={16} />
 </button>
 
 <style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AppWindow, FolderOpen, ListX, RotateCw, Store, Trash2 } from "@lucide/svelte";
+  import { AppWindow, FolderOpen, ListRemove, Rescan, Store, Trash } from "../lib/icons";
   import type { AppRow } from "../lib/api";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
@@ -48,7 +48,7 @@
     {#if app.has_uninstaller}
       <Button
         label="Uninstall"
-        icon={Trash2}
+        icon={Trash}
         variant="danger"
         wide
         disabled={app.removed || session.busy}
@@ -57,7 +57,7 @@
     {:else if !app.store}
       <Button
         label="Remove from installed list"
-        icon={ListX}
+        icon={ListRemove}
         wide
         disabled={app.removed}
         title="Its uninstaller is missing. Removes the app from Windows' installed list."
@@ -71,7 +71,7 @@
 
   <div class="section">
     <h3>Files and folders</h3>
-    <Button label="Look again" icon={RotateCw} variant="ghost" onclick={() => session.scanLeftovers(app.id)} />
+    <Button label="Look again" icon={Rescan} variant="ghost" onclick={() => session.scanLeftovers(app.id)} />
   </div>
 
   {#if !left || left.loading}
@@ -101,7 +101,7 @@
     </ul>
     <Button
       label="Delete {ticked.length} selected ({fmtSize(tickedBytes)})"
-      icon={Trash2}
+      icon={Trash}
       variant="danger"
       wide
       disabled={ticked.length === 0 || session.busy}

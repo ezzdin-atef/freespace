@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ScanSearch, Square } from "@lucide/svelte";
+  import { Search, Stop } from "../lib/icons";
   import type { ScanProgress } from "../lib/api";
   import { session } from "../lib/session.svelte";
   import { fmtCompact, fmtCount, fmtSeconds, fmtSize } from "../lib/format";
@@ -23,12 +23,12 @@
 </script>
 
 <PageHeader
-  icon={ScanSearch}
+  icon={Search}
   title="Scanning {p.root}"
   desc="Reading every folder in parallel. You can keep using your PC; results appear when the scan finishes."
 >
   {#snippet actions()}
-    <Button label={stopping ? "Stopping..." : "Stop scan"} icon={Square} disabled={stopping} onclick={stop} />
+    <Button label={stopping ? "Stopping..." : "Stop scan"} icon={Stop} disabled={stopping} onclick={stop} />
   {/snippet}
 </PageHeader>
 

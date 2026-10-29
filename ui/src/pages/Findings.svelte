@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Broom, CircleCheck, Search, SquareCheck } from "@lucide/svelte";
+  import { Broom, CheckCircle, CheckSquare, Search } from "../lib/icons";
   import type { FindingRow } from "../lib/api";
   import { session, type Show, type Sort } from "../lib/session.svelte";
   import { categoryIcon } from "../lib/icons";
@@ -120,7 +120,7 @@
           <Button label="Clear selection" variant="ghost" onclick={() => session.selectNone()} />
         {/if}
         {#if !large}
-          <Button label="Select all safe" icon={SquareCheck} onclick={() => session.selectSafe(cat)} />
+          <Button label="Select all safe" icon={CheckSquare} onclick={() => session.selectSafe(cat)} />
         {/if}
       {/snippet}
     </PageHeader>
@@ -154,6 +154,7 @@
             session.focusId = f.id;
             session.toggle(f.id);
           }}
+          onsetall={(rows, on) => session.setTicked(rows, on)}
           focused={session.focusId}
           onfocus={(f) => (session.focusId = f.id)}
           onopen={(f) => session.reveal(f)}
@@ -172,7 +173,7 @@
           {/snippet}
           {#snippet empty()}
             <div class="empty">
-              <span class="tile"><CircleCheck size={26} /></span>
+              <span class="tile"><CheckCircle size={26} /></span>
               <b>{session.filter ? "No items match your filter" : "Nothing to clean here"}</b>
               <p>Try another category or clear the filter.</p>
             </div>

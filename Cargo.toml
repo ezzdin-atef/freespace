@@ -4,12 +4,18 @@ version = "0.1.0"
 edition = "2021"
 description = "Fast Windows disk scanner and cleaner"
 
+[features]
+# The old egui UI, kept buildable for side-by-side checks until the Tauri migration is done:
+# cargo run --release --features egui
+egui = ["dep:eframe", "dep:egui-phosphor"]
+
 [dependencies]
-eframe = "0.36"
-egui-phosphor = { version = "0.14", default-features = false, features = ["bold"] }
+eframe = { version = "0.36", optional = true }
+egui-phosphor = { version = "0.14", default-features = false, features = ["bold"], optional = true }
 rayon = "1.10"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+tauri = { version = "2.12", features = [] }
 trash = "5"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
@@ -20,6 +26,9 @@ windows-sys = { version = "0.59", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 winreg = "0.56.0"
+
+[build-dependencies]
+tauri-build = { version = "2.5", features = [] }
 
 [profile.release]
 opt-level = 3

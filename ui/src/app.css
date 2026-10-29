@@ -1,0 +1,72 @@
+/* Design tokens: slate neutrals, indigo accent. Same palette as the egui ui_kit, so screens stay comparable. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --pane: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --fg: #0f172a;
+  --fg2: #334155;
+  --mut: #475569;
+  --mut2: #64748b;
+  --acc: #4f46e5;
+  --acc-hover: #4338ca;
+  --acc-bg: #eef2ff;
+  --row-hover: #f8fafc;
+  --safe: #15803d;
+  --safe-bg: #dcfce7;
+  --review: #b45309;
+  --review-bg: #fef3c7;
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+
+  --r-sm: 4px;
+  --r-ctl: 6px;
+  --r-card: 8px;
+  --ctl-h: 36px;
+
+  --font: "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, monospace;
+  --shadow-card: 0 1px 3px rgb(15 23 42 / 0.05);
+  --shadow-ctl: 0 1px 2px rgb(15 23 42 / 0.06);
+  --ring: 0 0 0 3px rgb(79 70 229 / 0.2);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font: 14px/1.45 var(--font);
+  color: var(--fg);
+  background: var(--bg);
+  overflow: hidden;
+  /* An app, not a document: no text selection or I-beam over labels. */
+  user-select: none;
+  cursor: default;
+  -webkit-font-smoothing: antialiased;
+}
+
+input,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}

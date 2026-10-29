@@ -103,18 +103,6 @@ pub enum Safety {
     Protected,
 }
 
-impl Safety {
-    // Only the egui UI reads this; goes away with it in phase 7.
-    #[cfg_attr(not(feature = "egui"), allow(dead_code))]
-    pub fn label(self) -> &'static str {
-        match self {
-            Safety::Safe => "Safe",
-            Safety::Caution => "Review",
-            Safety::Protected => "Do not delete",
-        }
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DeleteMode {
     /// Empty the folder but keep it (Temp, caches).

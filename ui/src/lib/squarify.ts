@@ -1,4 +1,4 @@
-// Port of ui_kit::squarify: lays out values as rectangles filling `rect`, keeping them close to square.
+// Squarified treemap layout: values become rectangles that fill `rect`, kept as close to square as possible.
 
 export interface Rect {
   x: number;

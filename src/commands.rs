@@ -126,7 +126,8 @@ pub fn init() -> Init {
     Init {
         drives: drives(),
         is_admin: win::is_admin(),
-        scan_on_start: arg.filter(|_| !open_apps),
+        // Normalized so the UI shows `C:\` for an argument like `"C:\"` (which Windows hands over as `C:"`).
+        scan_on_start: arg.filter(|_| !open_apps).map(|a| normalize_root(&a).map_or(a, |p| path_str(&p))),
         open_apps,
     }
 }
@@ -867,6 +868,15 @@ mod tests {
             std::thread::sleep(Duration::from_millis(50));
         }
         panic!("background job did not finish");
+    }
+
+    #[test]
+    fn roots_are_normalized() {
+        // `logcleaner.exe "C:\"` arrives as `C:"`: the backslash escapes the closing quote.
+        for input in ["C:\"", "C:", "c:/", " \"C:\\\" "] {
+            assert_eq!(normalize_root(input).map(|p| path_str(&p).to_uppercase()), Ok("C:\\".to_string()), "{input}");
+        }
+        assert!(normalize_root("Q:\\definitely\\not\\here").is_err());
     }
 
     /// The UI's round trip through the real commands and job pumps: scan a fixture, plan, clean, check the disk.

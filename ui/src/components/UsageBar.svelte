@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Fraction filled, 0..1. Turns red above 90% like the egui bars. */
+  /** Fraction filled, 0..1. Turns red above 90%. */
   let { frac }: { frac: number } = $props();
   const pct = $derived(Math.min(Math.max(frac, 0), 1) * 100);
 </script>

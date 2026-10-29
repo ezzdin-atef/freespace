@@ -88,3 +88,31 @@ App.svelte          shell: top bar, sidebar, page, detail pane, bulk bar, modals
 - **Keyboard parity.** The egui app has focus handling in tables; needs deliberate work in phase 4.
 - **WebView2 missing** on old Windows 10 installs; Tauri can bundle the bootstrapper if we ever ship an installer.
 - **Toolchain.** Node is required from phase 1 (v24 is already installed).
+
+## Results (phase 7, 2026-10-29)
+
+All seven phases are done; the egui UI (`app.rs`, `ui_kit.rs`, `eframe`, `egui-phosphor`) is removed.
+Measured on the same machine against the pre-migration `main` build, release profiles, 100% display scaling.
+
+| | egui (`main`) | Tauri |
+|---|---|---|
+| Exe size | 14.6 MB | 8.8 MB |
+| Window appears after launch | 81-343 ms | 66-274 ms |
+| Private memory, idle on Home (whole process tree) | 430-448 MB | 178-180 MB (7 processes incl. WebView2) |
+| Working set, idle on Home | 227-262 MB | 382-385 MB |
+| Private memory after a full C: scan | 483-491 MB | 233-241 MB |
+| Working set after a full C: scan | 278-287 MB | 455-466 MB |
+| Full C: scan (2.68M files, same scanner code) | 31.8 s, 11.5 s | 10.6 s, 27.7 s |
+
+Notes:
+- Scan time is dominated by disk/OS activity (Windows Search, Defender); runs swing 3x either way, so the two
+  builds are equivalent. The scanner itself is unchanged.
+- Working set is higher with Tauri because it counts WebView2's shared Edge pages in every process; private
+  memory (what the app itself allocates) is less than half of egui's, whose GPU renderer reserves a lot.
+- "Window appears" is the native window handle, not first paint; the WebView paints a moment later.
+- `findings()` for a full C: scan is 2,344 rows; the virtual table renders it without delay.
+
+Testing that covers the migration: 24 Rust tests (including a round trip through the real commands on
+Tauri's mock runtime: scan, usage browsing, plan, stale-id refusal, clean of findings and a picked folder),
+2 Vitest tests for the treemap layout, and click-throughs of every page against the dev mock
+(`npm run dev`, then open http://localhost:5173 in a browser).

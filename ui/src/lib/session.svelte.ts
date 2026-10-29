@@ -99,7 +99,7 @@ class Session {
   leftoverTicks = $state<Record<number, number[]>>({});
   uninstalling = $state<UninstallProgress | null>(null);
 
-  // List-page controls. Filter and sort carry over between pages, like the egui app; Show and focus reset.
+  // List-page controls. Filter and sort carry over between pages; Show and focus reset.
   filter = $state("");
   sort = $state<Sort>("size");
   show = $state<Show>("all");
@@ -131,7 +131,7 @@ class Session {
       bytes += f.size;
       if (f.safety !== "safe") review++;
     }
-    // Hand-picked folders always count as "to review", as in the egui app.
+    // Hand-picked folders always count as "to review".
     for (const size of this.selectedFolders.values()) {
       count++;
       bytes += size;
@@ -494,7 +494,7 @@ class Session {
 
   async relaunchAdmin() {
     try {
-      if (!(await api.relaunchAdmin())) this.notify("review", "Windows did not start LogCleaner as administrator.");
+      if (!(await api.relaunchAdmin())) this.notify("review", "Windows did not start Freespace as administrator.");
     } catch (e) {
       this.notify("danger", errorText(e));
     }

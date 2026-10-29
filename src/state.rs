@@ -168,7 +168,6 @@ pub fn clean_plan(scan: &ScanState, ids: &[usize], folders: &[PathBuf], maint: M
             note: note.to_string(),
             mode: DeleteMode::Whole,
             kind: ItemKind::Dir,
-            selected: true,
         });
     }
 
@@ -239,7 +238,6 @@ pub fn leftover_plan(session: &Session, app_id: usize, gen: u64, ids: &[usize]) 
             note: format!("{} - {}", l.what, l.note),
             mode: DeleteMode::Whole,
             kind: if l.path.is_file() { ItemKind::File } else { ItemKind::Dir },
-            selected: true,
         });
     }
     let warn = (!session.removed.contains(&app_id) && app.has_uninstaller())
@@ -280,7 +278,6 @@ mod tests {
             note: String::new(),
             mode: DeleteMode::Whole,
             kind: ItemKind::Dir,
-            selected: false,
         }
     }
 

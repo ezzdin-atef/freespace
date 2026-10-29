@@ -14,20 +14,6 @@ pub fn fmt_size(bytes: u64) -> String {
     }
 }
 
-// Only the egui UI reads this; goes away with it in phase 7.
-#[cfg_attr(not(feature = "egui"), allow(dead_code))]
-pub fn fmt_count(n: u64) -> String {
-    let s = n.to_string();
-    let mut out = String::with_capacity(s.len() + s.len() / 3);
-    for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    out
-}
-
 /// Null-terminated UTF-16 string for Win32 calls.
 pub fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
@@ -73,7 +59,6 @@ mod tests {
     fn sizes() {
         assert_eq!(fmt_size(512), "512 B");
         assert_eq!(fmt_size(1536), "1.5 KB");
-        assert_eq!(fmt_count(1234567), "1,234,567");
     }
 
     #[test]

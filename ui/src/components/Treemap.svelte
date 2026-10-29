@@ -9,7 +9,7 @@
     onpick,
   }: { items: { name: string; size: number }[]; height?: number; onpick?: (i: number) => void } = $props();
 
-  // Soft indigo/blue/cyan tints, the same set as the egui treemap.
+  // Soft indigo/blue/cyan tints.
   const TINTS = ["#c7d2fe", "#bfdbfe", "#ddd6fe", "#a5f3fc", "#e0e7ff", "#dbeafe", "#ede9fe", "#cffafe"];
   const GAP = 1.5;
 

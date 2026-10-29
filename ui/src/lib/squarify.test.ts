@@ -1,7 +1,6 @@
 import { expect, test } from "vitest";
 import { squarify } from "./squarify";
 
-// Same case as the Rust test it replaces (ui_kit::tests::squarify_fills_the_rect).
 test("squarify fills the rect", () => {
   const r = { x: 0, y: 0, w: 600, h: 200 };
   const vals = [301, 36.2, 29.3, 21.4, 9.5, 8.4, 8.2];

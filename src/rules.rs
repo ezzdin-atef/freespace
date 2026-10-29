@@ -78,6 +78,22 @@ impl Category {
             AppLeftovers => "Folders and shortcuts an app left behind after uninstalling.",
         }
     }
+
+    /// How to get the space's contents back after cleaning, shown under "How to get it back".
+    pub fn restore_hint(self) -> &'static str {
+        use Category::*;
+        match self {
+            NodeModules => "Run npm install, pnpm install or yarn in the project.",
+            BuildArtifacts => "Rebuilt by your next build (cargo build, dotnet build, next build...).",
+            DevCache => "Downloaded again the next time a project needs it.",
+            PythonEnv => "python -m venv .venv, then pip install -r requirements.txt.",
+            BrowserCache | AppCache | GpuCache | ThumbnailCache => "Nothing to do - recreated automatically.",
+            WindowsUpdate => "Windows downloads it again if it still needs it.",
+            RecycleBin | UserTemp | SystemTemp | CrashDumps | LogFiles | WindowsLogs => "Not needed - nothing to restore.",
+            OldWindows => "Cannot be restored - rolling back to the previous Windows is no longer possible.",
+            LargeFiles | Custom | AppLeftovers => "Only from your own backup (or the Recycle Bin option).",
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]

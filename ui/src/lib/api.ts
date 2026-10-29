@@ -79,6 +79,8 @@ export interface Group {
   category: string;
   label: string;
   description: string;
+  /** How to get it back after cleaning. */
+  restore: string;
   total: number;
   count: number;
 }
@@ -93,6 +95,8 @@ export interface FindingRow {
   safety: SafetyKey;
   note: string;
   kind: KindKey;
+  /** "contents" empties the folder and keeps it; "whole" deletes the item. */
+  mode: "contents" | "whole";
 }
 
 export interface UsageRow {

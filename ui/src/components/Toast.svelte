@@ -26,7 +26,8 @@
   .toast {
     position: fixed;
     right: 24px;
-    bottom: 24px;
+    /* Clear of the bulk action bar at the bottom of list pages. */
+    bottom: 84px;
     z-index: 50;
     max-width: 440px;
     display: flex;

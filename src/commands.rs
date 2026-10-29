@@ -7,7 +7,7 @@
 
 use crate::apps::{self, AppsMsg};
 use crate::cleaner::{self, CleanProgress, CleanReport, Maintenance};
-use crate::rules::{Category, ItemKind, Safety};
+use crate::rules::{Category, DeleteMode, ItemKind, Safety};
 use crate::scanner::{self, Finding, Progress};
 use crate::state::{self, CleanJob, LeftoverSet, Plan, ScanJob, ScanState, Session, BUSY};
 use crate::{safety, win};
@@ -280,6 +280,7 @@ pub struct Group {
     pub category: String,
     pub label: &'static str,
     pub description: &'static str,
+    pub restore: &'static str,
     pub total: u64,
     pub count: usize,
 }
@@ -301,6 +302,7 @@ pub fn groups(state: State<'_, Shared>, scan_id: u64) -> Res<Vec<Group>> {
             category: category_key(c),
             label: c.label(),
             description: c.description(),
+            restore: c.restore_hint(),
             total,
             count,
         })
@@ -320,6 +322,8 @@ pub struct FindingRow {
     pub safety: &'static str,
     pub note: String,
     pub kind: &'static str,
+    /// "contents" empties the folder and keeps it; "whole" deletes the item.
+    pub mode: &'static str,
 }
 
 fn finding_row(id: usize, f: &Finding) -> FindingRow {
@@ -338,6 +342,10 @@ fn finding_row(id: usize, f: &Finding) -> FindingRow {
         safety: safety_key(f.safety),
         note: f.note.clone(),
         kind: kind_key(f.kind),
+        mode: match f.mode {
+            DeleteMode::Contents => "contents",
+            DeleteMode::Whole => "whole",
+        },
     }
 }
 

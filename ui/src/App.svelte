@@ -22,7 +22,7 @@
   import Toast from "./components/Toast.svelte";
   import Home from "./pages/Home.svelte";
   import Pending from "./pages/Pending.svelte";
-  import Results from "./pages/Results.svelte";
+  import Findings from "./pages/Findings.svelte";
   import Scanning from "./pages/Scanning.svelte";
 
   session.start();
@@ -30,6 +30,8 @@
   const v = $derived(session.view);
   const is = (page: View["page"]) => v.page === page;
   const isCat = (c: string | null) => v.page === "cleanable" && v.category === c;
+  // List pages lay out their own scrolling table and detail pane.
+  const fill = $derived(!session.scanning && (v.page === "cleanable" || v.page === "large"));
 
   const scanStats = $derived.by(() => {
     const s = session.scan;
@@ -113,15 +115,15 @@
     />
   </nav>
 
-  <main>
+  <main class:fill>
     {#if session.scanning && !is("apps")}
       <Scanning p={session.scanning} />
     {:else if v.page === "home"}
       <Home />
     {:else if v.page === "cleanable"}
-      <Results category={v.category} />
+      <Findings category={v.category} />
     {:else if v.page === "large"}
-      <Pending title="Large files" phase={4} />
+      <Findings category={null} large />
     {:else if v.page === "full"}
       <Pending title="Full clean" phase={5} />
     {:else if v.page === "report"}
@@ -197,7 +199,12 @@
     border-right: 1px solid var(--line);
   }
   main {
+    min-width: 0;
     overflow: auto;
     padding: 32px 40px;
+  }
+  main.fill {
+    overflow: hidden;
+    padding: 0;
   }
 </style>

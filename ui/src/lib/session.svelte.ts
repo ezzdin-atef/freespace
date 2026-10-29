@@ -1,7 +1,8 @@
 // App-wide state: mirrors the Rust session (drives, scan, progress) and holds pure UI state (view, toast).
 // Rust stays the source of truth; this re-queries it after every `...:done` event.
+import { SvelteSet } from "svelte/reactivity";
 import * as api from "./api";
-import type { Drive, Group, ScanProgress, ScanSummary } from "./api";
+import type { Drive, FindingRow, Group, SafetyKey, ScanProgress, ScanSummary } from "./api";
 
 export type View =
   | { page: "home" }
@@ -13,6 +14,8 @@ export type View =
   | { page: "apps" };
 
 export type Tone = "safe" | "review" | "danger";
+export type Show = "all" | SafetyKey;
+export type Sort = "size" | "name" | "group";
 
 export interface Toast {
   id: number;
@@ -39,6 +42,18 @@ class Session {
   hasReport = $state(false);
   appCount = $state<number | null>(null);
 
+  /** Findings of the current scan. Raw: rows are replaced as a whole, never mutated. */
+  findings = $state.raw<FindingRow[]>([]);
+  /** Ticked finding ids; only meaningful together with `scan.scan_id`. */
+  readonly selected = new SvelteSet<number>();
+  useTrash = $state(false);
+
+  // List-page controls. Filter and sort carry over between pages, like the egui app; Show and focus reset.
+  filter = $state("");
+  sort = $state<Sort>("size");
+  show = $state<Show>("all");
+  focusId = $state<number | null>(null);
+
   toast = $state<Toast | null>(null);
   private toastSeq = 0;
   private started = false;
@@ -49,6 +64,24 @@ class Session {
   readonly largeCount = $derived(this.groups.find((g) => g.category === LARGE)?.count ?? 0);
   readonly busy = $derived(this.scanning !== null);
 
+  readonly findingById = $derived(new Map(this.findings.map((f) => [f.id, f])));
+  readonly groupByCategory = $derived(new Map(this.groups.map((g) => [g.category, g])));
+
+  /** Count, bytes and how many are not marked Safe, over everything ticked. */
+  readonly selection = $derived.by(() => {
+    let count = 0;
+    let bytes = 0;
+    let review = 0;
+    for (const id of this.selected) {
+      const f = this.findingById.get(id);
+      if (!f) continue;
+      count++;
+      bytes += f.size;
+      if (f.safety !== "safe") review++;
+    }
+    return { count, bytes, review };
+  });
+
   notify(tone: Tone, text: string) {
     this.toast = { id: ++this.toastSeq, tone, text };
   }
@@ -58,7 +91,42 @@ class Session {
   }
 
   go(view: View) {
+    const same = view.page === this.view.page && JSON.stringify(view) === JSON.stringify(this.view);
+    if (same) return;
     this.view = view;
+    this.show = "all";
+    this.focusId = null;
+  }
+
+  // ---------------------------------------------------------------- selection
+
+  toggle(id: number) {
+    const f = this.findingById.get(id);
+    if (!f || f.safety === "protected") return;
+    if (this.selected.has(id)) this.selected.delete(id);
+    else this.selected.add(id);
+  }
+
+  /** Ticks every Safe finding in `category` (all cleanable categories when null). */
+  selectSafe(category: string | null) {
+    for (const f of this.findings) {
+      const inView = category ? f.category === category : f.category !== LARGE;
+      if (inView && f.safety === "safe") this.selected.add(f.id);
+    }
+  }
+
+  selectNone() {
+    this.selected.clear();
+  }
+
+  /** Opens the confirm dialog for what is ticked. The clean flow moves over in migration phase 5. */
+  requestClean() {
+    if (this.selection.count === 0 || this.busy) return;
+    this.notify("review", "Cleaning moves to the new interface in the next migration phase. Use the egui build to clean for now.");
+  }
+
+  reveal(f: FindingRow) {
+    if (f.kind !== "recycle_bin") api.reveal(f.path).catch((e) => this.notify("danger", errorText(e)));
   }
 
   /** Loads startup data, subscribes to backend events and restores any job already running. */
@@ -118,6 +186,9 @@ class Session {
       };
       this.scan = null;
       this.groups = [];
+      this.findings = [];
+      this.selected.clear();
+      this.focusId = null;
       if (this.view.page !== "apps") this.view = { page: "home" };
     } catch (e) {
       this.notify("danger", errorText(e));
@@ -137,13 +208,15 @@ class Session {
     }
     if (d.summary.cancelled) this.notify("review", "Scan stopped - results are partial.");
     await this.loadScan(d.summary);
-    if (this.view.page !== "apps") this.view = { page: "cleanable", category: null };
+    if (this.view.page !== "apps") this.go({ page: "cleanable", category: null });
   }
 
   private async loadScan(summary: ScanSummary) {
     this.scan = summary;
     try {
-      this.groups = await api.groups(summary.scan_id);
+      const [groups, findings] = await Promise.all([api.groups(summary.scan_id), api.findings(summary.scan_id)]);
+      this.groups = groups;
+      this.findings = findings;
     } catch (e) {
       this.notify("danger", errorText(e));
     }

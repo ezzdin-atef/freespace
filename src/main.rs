@@ -1,8 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-// Until phase 2 wires the scanner, cleaner and apps modules into Tauri commands, most of them are
-// only reachable from the egui UI.
-#![cfg_attr(not(feature = "egui"), allow(dead_code))]
-
 #[cfg(feature = "egui")]
 mod app;
 mod apps;
@@ -12,6 +8,8 @@ mod commands;
 mod rules;
 mod safety;
 mod scanner;
+#[cfg(not(feature = "egui"))]
+mod state;
 #[cfg(feature = "egui")]
 mod ui_kit;
 mod util;
@@ -19,8 +17,38 @@ mod win;
 
 #[cfg(not(feature = "egui"))]
 fn main() {
+    use commands::*;
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![commands::init])
+        .manage(Shared::default())
+        .setup(|app| {
+            start_apps_load(app.handle());
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            init,
+            status,
+            start_scan,
+            stop_scan,
+            groups,
+            findings,
+            full_clean_ids,
+            usage,
+            plan_clean,
+            clean,
+            stop_clean,
+            report,
+            apps,
+            scan_leftovers,
+            leftovers,
+            plan_leftovers,
+            delete_leftovers,
+            uninstall,
+            stop_uninstall,
+            remove_entry,
+            reveal,
+            relaunch_admin,
+            reset_pc,
+        ])
         .run(tauri::generate_context!())
         .expect("failed to start LogCleaner");
 }

@@ -88,6 +88,8 @@ pub enum Safety {
 }
 
 impl Safety {
+    // Only the egui UI reads this; goes away with it in phase 7.
+    #[cfg_attr(not(feature = "egui"), allow(dead_code))]
     pub fn label(self) -> &'static str {
         match self {
             Safety::Safe => "Safe",

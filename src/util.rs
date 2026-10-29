@@ -14,6 +14,8 @@ pub fn fmt_size(bytes: u64) -> String {
     }
 }
 
+// Only the egui UI reads this; goes away with it in phase 7.
+#[cfg_attr(not(feature = "egui"), allow(dead_code))]
 pub fn fmt_count(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::with_capacity(s.len() + s.len() / 3);

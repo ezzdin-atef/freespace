@@ -28,6 +28,8 @@ pub struct Finding {
     pub note: String,
     pub mode: DeleteMode,
     pub kind: ItemKind,
+    // Only the egui UI reads this; goes away with it in phase 7.
+    #[cfg_attr(not(feature = "egui"), allow(dead_code))]
     pub selected: bool,
 }
 

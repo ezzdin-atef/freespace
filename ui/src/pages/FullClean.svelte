@@ -62,7 +62,7 @@
     <h3>Extra Windows maintenance</h3>
     {#if !session.isAdmin}
       <Callout tone="review" title="Needs administrator">
-        <button class="link" onclick={() => session.relaunchAdmin()}>Restart LogCleaner as administrator</button>
+        <button class="link" onclick={() => session.relaunchAdmin()}>Restart Freespace as administrator</button>
       </Callout>
     {/if}
     <div class="option" class:off={!session.isAdmin}>

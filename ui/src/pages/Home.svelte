@@ -28,7 +28,7 @@
 <div class="col">
   <h1>Free up space on your PC</h1>
   <p class="lead">
-    Pick a drive to scan, review what LogCleaner finds, then clean it. Nothing is deleted until you tick it and confirm.
+    Pick a drive to scan, review what Freespace finds, then clean it. Nothing is deleted until you tick it and confirm.
   </p>
 
   <div class="drives">

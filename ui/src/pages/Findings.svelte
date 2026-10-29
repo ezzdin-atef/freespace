@@ -113,7 +113,7 @@
       title={group?.label ?? (large ? "Large files" : "All cleanable")}
       meta="{fmtSize(total)}  ·  {fmtCount(visible.length)} items"
       desc={group?.description ??
-        "Everything LogCleaner can clean here, biggest first. Green is safe to delete, amber needs a quick look, red is never deleted."}
+        "Everything Freespace can clean here, biggest first. Green is safe to delete, amber needs a quick look, red is never deleted."}
     >
       {#snippet actions()}
         {#if session.selection.count > 0}

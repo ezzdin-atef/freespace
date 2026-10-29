@@ -258,7 +258,7 @@ export function install() {
         }
         case "uninstall": {
           const appId = (args as { appId: number }).appId;
-          emit("uninstall:progress", { app_id: appId, stage: "Follow the uninstaller window. LogCleaner waits until it is done." });
+          emit("uninstall:progress", { app_id: appId, stage: "Follow the uninstaller window. Freespace waits until it is done." });
           setTimeout(() => {
             apps[appId] = { ...apps[appId], removed: true };
             emit("uninstall:done", { app_id: appId, removed: true, message: `${apps[appId].name} was uninstalled.` });

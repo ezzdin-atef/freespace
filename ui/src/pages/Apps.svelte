@@ -76,7 +76,7 @@
       icon={AppWindow}
       title="Installed apps"
       meta="{fmtCount(visible.length)} apps  ·  {fmtSize(total)}{session.appsLoading ? '  ·  measuring sizes...' : ''}"
-      desc="Pick an app to see its folders. Uninstall runs the app's own uninstaller; afterwards LogCleaner finds the files it left behind so you can delete them too."
+      desc="Pick an app to see its folders. Uninstall runs the app's own uninstaller; afterwards Freespace finds the files it left behind so you can delete them too."
     />
 
     <div class="toolbar">

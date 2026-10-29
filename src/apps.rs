@@ -535,7 +535,7 @@ fn uninstall(app: &InstalledApp, prog: &UninstallProgress) -> Outcome {
                     }
                 }
             };
-            stage("Follow the uninstaller window. LogCleaner waits until it is done.");
+            stage("Follow the uninstaller window. Freespace waits until it is done.");
             let ran = match win::run_and_wait(&exe, &args, &prog.cancel) {
                 Ok(d) => d,
                 Err(e) => return Outcome { removed: false, message: e },

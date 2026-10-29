@@ -48,8 +48,15 @@
 </script>
 
 <header>
-  <div class="logo"><Broom size={16} strokeWidth={2.25} /></div>
-  <div class="brand">LogCleaner</div>
+  <div class="logo">
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" />
+      <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" />
+      <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" />
+      <rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5" />
+    </svg>
+  </div>
+  <div class="brand">Freespace</div>
   <div class="sep"></div>
   <DrivePicker />
   {#if session.scanning}

@@ -57,7 +57,7 @@
 {:else if c?.kind === "uninstall"}
   <Modal icon={Trash2} tone="danger" title="Uninstall {appName(c.appId)}?" width={480} onclose={() => session.cancelConfirm()}>
     <p>
-      Windows runs the app's own uninstaller. Follow its window. When it finishes, LogCleaner lists the folders it left
+      Windows runs the app's own uninstaller. Follow its window. When it finishes, Freespace lists the folders it left
       behind so you can delete them too.
     </p>
     {#snippet footer()}

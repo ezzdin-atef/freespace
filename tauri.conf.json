@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "LogCleaner",
+  "productName": "Freespace",
   "version": "0.1.0",
   "identifier": "dev.logcleaner.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "LogCleaner",
+        "title": "Freespace",
         "width": 1400,
         "height": 860,
         "minWidth": 1150,

@@ -1,0 +1,13 @@
+[package]
+name = "logcleaner-slint-proto"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Throwaway Slint prototype of the LogCleaner home page, for comparing against the egui UI"
+
+[dependencies]
+slint = { version = "1.18", features = ["renderer-skia"] }
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
+[build-dependencies]
+slint-build = "1.18"

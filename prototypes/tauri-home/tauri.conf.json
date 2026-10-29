@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LogCleaner Tauri prototype",
+  "version": "0.0.0",
+  "identifier": "dev.logcleaner.tauri-proto",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "LogCleaner - Tauri prototype",
+        "width": 1400,
+        "height": 860,
+        "minWidth": 1000,
+        "minHeight": 640
+      }
+    ]
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.png", "icons/icon.ico"]
+  }
+}

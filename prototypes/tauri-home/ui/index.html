@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LogCleaner - Tauri prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #fff; --pane: #f1f5f9; --line: #e2e8f0; --line-strong: #cbd5e1;
+    --fg: #0f172a; --fg2: #334155; --mut: #475569; --mut2: #64748b;
+    --acc: #4f46e5; --acc-hover: #4338ca; --acc-bg: #eef2ff; --row-hover: #f8fafc; --danger: #dc2626;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; color: var(--fg);
+    background: var(--bg); display: grid; grid-template-rows: 56px 1fr; overflow: hidden;
+    user-select: none; cursor: default;
+  }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* top bar */
+  header { display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .logo { width: 30px; height: 30px; border-radius: 7px; background: var(--acc); color: #fff; display: grid; place-items: center; }
+  .brand { font-size: 17px; font-weight: 700; }
+  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  .select { width: 260px; height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 6px; font-weight: 600; cursor: pointer; transition: border-color .12s; }
+  .select:hover { border-color: var(--line-strong); }
+  .select span { flex: 1; }
+  .select svg { color: var(--mut); }
+  .grow { flex: 1; }
+  .tech { color: var(--mut2); font-size: 13px; }
+
+  /* buttons */
+  .btn { height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px;
+    font: 600 14px "Segoe UI", system-ui; border-radius: 6px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--fg); cursor: pointer; box-shadow: 0 1px 2px rgb(15 23 42 / .06); transition: background .12s, border-color .12s; }
+  .btn:hover { background: var(--row-hover); border-color: var(--line-strong); }
+  .btn svg { width: 14px; height: 14px; color: var(--fg2); }
+  .btn.primary { background: var(--acc); border-color: var(--acc); color: #fff; box-shadow: 0 1px 2px rgb(79 70 229 / .3); }
+  .btn.primary:hover { background: var(--acc-hover); }
+  .btn.primary svg { color: #fff; }
+  .btn:focus-visible { outline: 3px solid rgb(79 70 229 / .25); outline-offset: 1px; }
+
+  /* sidebar */
+  .body { display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
+  nav { background: var(--surface); border-right: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+  .nav { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 12px; border-radius: 6px; color: var(--fg2); cursor: pointer; }
+  .nav svg { color: var(--mut); }
+  .nav:hover { background: var(--pane); }
+  .nav.active { background: var(--acc-bg); color: var(--acc); font-weight: 600; }
+  .nav.active svg { color: var(--acc); }
+  .nav span { flex: 1; }
+  .count { font-style: normal; font-size: 12px; font-weight: 600; color: var(--mut); background: var(--pane); border-radius: 4px; padding: 1px 7px; }
+  .section { padding: 14px 12px 4px; font-size: 12px; font-weight: 600; color: var(--mut2); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* page */
+  main { overflow: auto; padding: 40px; }
+  .col { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+  .lead { margin-top: 6px; font-size: 15px; color: var(--mut); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px rgb(15 23 42 / .05); overflow: hidden; }
+  .drives { margin-top: 24px; }
+  .drive { height: 72px; display: flex; align-items: center; gap: 14px; padding: 0 20px 0 22px; }
+  .drive + .drive { border-top: 1px solid var(--line); }
+  .tile { width: 36px; height: 36px; border-radius: 6px; background: var(--acc-bg); color: var(--acc); display: grid; place-items: center; }
+  .tile svg { width: 18px; height: 18px; }
+  .name { width: 180px; }
+  .name b { display: block; font-size: 15px; font-weight: 600; }
+  .name small, .usage small { font-size: 13px; color: var(--mut); }
+  .usage { flex: 1; display: flex; flex-direction: column; gap: 8px; margin-right: 24px; }
+  .usage div { display: flex; justify-content: space-between; }
+  .bar { height: 6px; border-radius: 3px; background: var(--pane); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 3px; background: var(--acc); }
+  .bar i.low { background: var(--danger); }
+  .drive .btn { width: 92px; }
+  .folder { background: var(--row-hover); border-top: 1px solid var(--line); padding: 16px 20px 18px 22px; }
+  .folder b { font-size: 15px; font-weight: 600; }
+  .folder p { font-size: 13px; color: var(--mut); margin-top: 2px; }
+  .folder .row { display: flex; gap: 8px; margin-top: 12px; }
+  .field { flex: 1; height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; transition: border-color .12s, box-shadow .12s; }
+  .field:hover { border-color: var(--line-strong); }
+  .field:focus-within { border-color: var(--acc); box-shadow: 0 0 0 3px rgb(79 70 229 / .18); }
+  .field svg { color: var(--mut2); }
+  .field input { flex: 1; border: 0; outline: 0; font: 14px "Segoe UI", system-ui; color: var(--fg); background: transparent; }
+  .folder .btn { width: 84px; }
+
+  h2 { margin: 32px 0 12px; font-size: 16px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid .card { padding: 20px; }
+  .grid h3 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: start; color: var(--fg2); }
+  .kv.keys { grid-template-columns: 140px 1fr; gap: 6px 10px; align-items: center; }
+  .pill { justify-self: start; font-size: 13px; font-weight: 600; padding: 1px 9px; border-radius: 4px; }
+  kbd { justify-self: start; font: 12px "Cascadia Mono", Consolas, monospace; color: var(--fg2); background: var(--row-hover);
+    border: 1px solid var(--line-strong); border-radius: 4px; padding: 2px 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="drive" viewBox="0 0 24 24"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><path d="M6 16h.01M10 16h.01"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path d="M6 3 20 12 6 21z"/></symbol>
+  <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="app" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20M6 4v5M10 4v5"/></symbol>
+  <symbol id="chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16v4M17 18h4"/></symbol>
+</svg>
+
+<header>
+  <div class="logo"><svg class="i"><use href="#sparkle"/></svg></div>
+  <div class="brand">LogCleaner</div>
+  <div class="sep"></div>
+  <div class="select"><svg class="i"><use href="#drive"/></svg><span>C:&nbsp; Local disk</span><svg class="i"><use href="#chevron"/></svg></div>
+  <button class="btn primary" data-scan="C:\"><svg class="i"><use href="#play"/></svg>Scan</button>
+  <div class="grow"></div>
+  <div class="tech">Tauri / WebView2</div>
+  <button class="btn"><svg class="i"><use href="#shield"/></svg>Run as admin</button>
+</header>
+
+<div class="body">
+  <nav>
+    <div class="nav active"><svg class="i"><use href="#house"/></svg><span>Home</span></div>
+    <div class="section">Programs</div>
+    <div class="nav"><svg class="i"><use href="#app"/></svg><span>Installed apps</span><em class="count">182</em></div>
+  </nav>
+
+  <main>
+    <div class="col">
+      <h1>Free up space on your PC</h1>
+      <p class="lead">Pick a drive to scan, review what LogCleaner finds, then clean it. Nothing is deleted until you tick it and confirm.</p>
+
+      <div class="card drives">
+        <div id="drives"></div>
+        <div class="folder">
+          <b>Scan one folder</b>
+          <p>Faster when you only want to clean a projects or downloads folder.</p>
+          <div class="row">
+            <label class="field"><svg class="i"><use href="#folder"/></svg><input id="folder" value="C:\" spellcheck="false"></label>
+            <button class="btn primary" id="scan-folder">Scan</button>
+          </div>
+        </div>
+      </div>
+
+      <h2>Good to know</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Safety labels</h3>
+          <div class="kv">
+            <span class="pill" style="color:#15803d;background:#dcfce7">Safe</span><span>Rebuilt or downloaded again automatically. Fine to delete.</span>
+            <span class="pill" style="color:#b45309;background:#fef3c7">Review</span><span>Probably fine, but check it is not something you need.</span>
+            <span class="pill" style="color:#dc2626;background:#fee2e2">Do not delete</span><span>Windows, installed programs, your profile folders, .git. Never deleted.</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Keyboard shortcuts</h3>
+          <div class="kv keys">
+            <kbd>Up / Down</kbd><span>Move through a list</span>
+            <kbd>Space</kbd><span>Tick the highlighted row</span>
+            <kbd>Del</kbd><span>Clean what is ticked</span>
+            <kbd>Enter / Backspace</kbd><span>Open a folder / go back up</span>
+            <kbd>Ctrl F</kbd><span>Search</span>
+            <kbd>Esc</kbd><span>Clear search, close a dialog</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  invoke("drives").then((list) => {
+    document.getElementById("drives").innerHTML = list.map((d, i) => `
+      <div class="drive">
+        <div class="tile"><svg class="i"><use href="#drive"/></svg></div>
+        <div class="name"><b>${esc(d.label)}</b><small>${esc(d.sub)}</small></div>
+        <div class="usage">
+          <div><small>${esc(d.used_pct)}</small><small>${esc(d.used)}</small></div>
+          <div class="bar"><i class="${d.frac > 0.9 ? "low" : ""}" style="width:${(d.frac * 100).toFixed(1)}%"></i></div>
+        </div>
+        <button class="btn${d.primary ? " primary" : ""}" data-drive="${i}"><svg class="i"><use href="#play"/></svg>Scan</button>
+      </div>`).join("");
+  });
+
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-drive], button[data-scan]");
+    if (b) invoke("scan", { target: b.dataset.scan ?? `drive ${b.dataset.drive}` });
+  });
+  const folder = document.getElementById("folder");
+  document.getElementById("scan-folder").onclick = () => invoke("scan", { target: folder.value });
+  folder.onkeydown = (e) => e.key === "Enter" && invoke("scan", { target: folder.value });
+</script>
+</body>
+</html>

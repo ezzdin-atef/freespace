@@ -1,0 +1,6 @@
+/target
+/prototypes/*/target
+/prototypes/*/gen
+/gen
+node_modules
+/dist

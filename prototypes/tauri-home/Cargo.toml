@@ -1,0 +1,15 @@
+[package]
+name = "logcleaner-tauri-proto"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Throwaway Tauri prototype of the LogCleaner home page, for comparing against the egui and Slint UIs"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

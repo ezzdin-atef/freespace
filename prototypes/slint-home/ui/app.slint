@@ -1,0 +1,666 @@
+// LogCleaner home page, rebuilt in Slint to compare text and icon quality with the egui version.
+
+export struct Drive {
+    label: string,
+    sub: string,
+    used-pct: string,
+    used: string,
+    frac: float,
+    primary: bool,
+}
+
+global Theme {
+    out property <color> bg: #f6f7f9;
+    out property <color> surface: #ffffff;
+    out property <color> pane: #f1f5f9;
+    out property <color> line: #e2e8f0;
+    out property <color> line-strong: #cbd5e1;
+    out property <color> fg: #0f172a;
+    out property <color> fg2: #334155;
+    out property <color> mut: #475569;
+    out property <color> mut2: #64748b;
+    out property <color> acc: #4f46e5;
+    out property <color> acc-hover: #4338ca;
+    out property <color> acc-bg: #eef2ff;
+    out property <color> row-hover: #f8fafc;
+    out property <color> danger: #dc2626;
+}
+
+// Lucide-style 24x24 stroke icons, drawn as vector paths so they stay sharp at any size.
+global Icons {
+    out property <string> house: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8 M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z";
+    out property <string> drive: "M22 12H2 M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z M6 16h.01 M10 16h.01";
+    out property <string> play: "M6 3 20 12 6 21z";
+    out property <string> folder: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z";
+    out property <string> shield: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z";
+    out property <string> app: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M2 9h20 M6 4v5 M10 4v5";
+    out property <string> chevron: "M6 9l6 6 6-6";
+    out property <string> sparkle: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z M19 16v4 M17 18h4";
+}
+
+component Icon inherits Path {
+    in property <length> size: 16px;
+    width: size;
+    height: size;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    fill: transparent;
+    stroke-width: 1.75px;
+}
+
+// Icon centred vertically, for use inside horizontal layouts.
+component IconCell inherits VerticalLayout {
+    in property <string> commands;
+    in property <length> size: 16px;
+    in property <color> color: Theme.fg2;
+    alignment: center;
+    Icon {
+        commands: root.commands;
+        size: root.size;
+        stroke: root.color;
+    }
+}
+
+component Btn inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> primary;
+    callback clicked;
+    height: 36px;
+    horizontal-stretch: 0;
+    border-radius: 6px;
+    background: primary ? (ta.has-hover ? Theme.acc-hover : Theme.acc) : (ta.has-hover ? Theme.row-hover : Theme.surface);
+    border-width: primary ? 0px : 1px;
+    border-color: ta.has-hover ? Theme.line-strong : Theme.line;
+    drop-shadow-blur: 2px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: primary ? #4f46e533 : #0f172a10;
+    animate background { duration: 120ms; }
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 8px;
+        padding-left: 14px;
+        padding-right: 14px;
+        if root.icon != "": IconCell {
+            commands: root.icon;
+            size: 14px;
+            color: root.primary ? #ffffff : Theme.fg2;
+        }
+        Text {
+            text: root.text;
+            font-size: 14px;
+            font-weight: 600;
+            color: root.primary ? #ffffff : Theme.fg;
+            vertical-alignment: center;
+        }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component NavItem inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <string> count;
+    in property <bool> active;
+    height: 36px;
+    border-radius: 6px;
+    background: active ? Theme.acc-bg : (ta.has-hover ? Theme.pane : transparent);
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        spacing: 10px;
+        IconCell {
+            commands: root.icon;
+            color: root.active ? Theme.acc : Theme.mut;
+        }
+        Text {
+            text: root.text;
+            horizontal-stretch: 1;
+            font-size: 14px;
+            font-weight: root.active ? 600 : 400;
+            color: root.active ? Theme.acc : Theme.fg2;
+            vertical-alignment: center;
+        }
+        if root.count != "": VerticalLayout {
+            alignment: center;
+            Rectangle {
+                height: 20px;
+                border-radius: 4px;
+                background: root.active ? Theme.surface : Theme.pane;
+                HorizontalLayout {
+                    padding-left: 7px;
+                    padding-right: 7px;
+                    Text {
+                        text: root.count;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: Theme.mut;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+    }
+}
+
+component SectionLabel inherits HorizontalLayout {
+    in property <string> text;
+    padding-left: 12px;
+    padding-top: 14px;
+    padding-bottom: 4px;
+    Text {
+        text: root.text;
+        font-size: 12px;
+        font-weight: 600;
+        color: Theme.mut2;
+        letter-spacing: 0.4px;
+    }
+}
+
+component Card inherits Rectangle {
+    background: Theme.surface;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.line;
+    drop-shadow-blur: 3px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: #0f172a0d;
+}
+
+component Bar inherits Rectangle {
+    in property <float> frac;
+    height: 6px;
+    border-radius: 3px;
+    background: Theme.pane;
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.frac, 0, 1);
+        height: parent.height;
+        border-radius: 3px;
+        background: root.frac > 0.9 ? Theme.danger : Theme.acc;
+    }
+}
+
+component DriveRow inherits Rectangle {
+    in property <Drive> drive;
+    in property <bool> first;
+    callback scan;
+    height: 72px;
+
+    if !root.first: Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 1px;
+        background: Theme.line;
+    }
+
+    HorizontalLayout {
+        padding-left: 22px;
+        padding-right: 20px;
+        padding-top: 18px;
+        padding-bottom: 18px;
+        spacing: 14px;
+        Rectangle {
+            width: 36px;
+            border-radius: 6px;
+            background: Theme.acc-bg;
+            Icon {
+                commands: Icons.drive;
+                size: 18px;
+                stroke: Theme.acc;
+            }
+        }
+        VerticalLayout {
+            width: 180px;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.drive.label;
+                font-size: 15px;
+                font-weight: 600;
+                color: Theme.fg;
+            }
+            Text {
+                text: root.drive.sub;
+                font-size: 13px;
+                color: Theme.mut;
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 8px;
+            HorizontalLayout {
+                Text {
+                    text: root.drive.used-pct;
+                    horizontal-stretch: 1;
+                    font-size: 13px;
+                    color: Theme.mut;
+                }
+                Text {
+                    text: root.drive.used;
+                    font-size: 13px;
+                    color: Theme.mut;
+                }
+            }
+            Bar {
+                frac: root.drive.frac;
+            }
+        }
+        Rectangle {
+            width: 10px;
+        }
+        Btn {
+            width: 92px;
+            text: "Scan";
+            icon: Icons.play;
+            primary: root.drive.primary;
+            clicked => { root.scan(); }
+        }
+    }
+}
+
+component Field inherits Rectangle {
+    in-out property <string> text;
+    callback accepted;
+    height: 36px;
+    border-radius: 6px;
+    background: Theme.surface;
+    border-width: 1px;
+    border-color: ti.has-focus ? Theme.acc : (ta.has-hover ? Theme.line-strong : Theme.line);
+
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { ti.focus(); }
+    }
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+        IconCell {
+            commands: Icons.folder;
+            color: Theme.mut2;
+        }
+        ti := TextInput {
+            text <=> root.text;
+            single-line: true;
+            font-size: 14px;
+            color: Theme.fg;
+            vertical-alignment: center;
+            selection-background-color: #4f46e538;
+            accepted => { root.accepted(); }
+        }
+    }
+}
+
+component Pill inherits Rectangle {
+    in property <string> text;
+    in property <color> fg;
+    height: 22px;
+    border-radius: 4px;
+    HorizontalLayout {
+        padding-left: 9px;
+        padding-right: 9px;
+        Text {
+            text: root.text;
+            font-size: 13px;
+            font-weight: 600;
+            color: root.fg;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component Kbd inherits Rectangle {
+    in property <string> text;
+    height: 22px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Theme.line-strong;
+    background: Theme.row-hover;
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+        Text {
+            text: root.text;
+            font-family: "Cascadia Mono";
+            font-size: 12px;
+            color: Theme.fg2;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    in property <[Drive]> drives;
+    in property <string> renderer;
+    in-out property <string> folder: "C:\\";
+    callback scan(int);
+    callback scan-folder(string);
+
+    title: "LogCleaner - Slint prototype";
+    preferred-width: 1400px;
+    preferred-height: 860px;
+    min-width: 1000px;
+    min-height: 640px;
+    background: Theme.bg;
+    default-font-family: "Segoe UI";
+
+    VerticalLayout {
+        // ---------------------------------------------------------- top bar
+        Rectangle {
+            height: 56px;
+            background: Theme.surface;
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 10px;
+                padding-bottom: 10px;
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 7px;
+                        background: Theme.acc;
+                        Icon {
+                            commands: Icons.sparkle;
+                            size: 16px;
+                            stroke: #ffffff;
+                        }
+                    }
+                }
+                Text {
+                    text: "LogCleaner";
+                    font-size: 17px;
+                    font-weight: 700;
+                    color: Theme.fg;
+                    vertical-alignment: center;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 4px;
+                    padding-right: 4px;
+                    Rectangle {
+                        width: 1px;
+                        height: 22px;
+                        background: Theme.line;
+                    }
+                }
+                Rectangle {
+                    width: 260px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: sel.has-hover ? Theme.line-strong : Theme.line;
+                    background: Theme.surface;
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 10px;
+                        IconCell {
+                            commands: Icons.drive;
+                            color: Theme.mut;
+                        }
+                        Text {
+                            text: "C:  Local disk";
+                            horizontal-stretch: 1;
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: Theme.fg;
+                            vertical-alignment: center;
+                        }
+                        IconCell {
+                            commands: Icons.chevron;
+                            color: Theme.mut;
+                        }
+                    }
+                    sel := TouchArea {
+                        mouse-cursor: pointer;
+                    }
+                }
+                Btn {
+                    text: "Scan";
+                    icon: Icons.play;
+                    primary: true;
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: "Slint / " + root.renderer;
+                    font-size: 13px;
+                    color: Theme.mut2;
+                    vertical-alignment: center;
+                }
+                Btn {
+                    text: "Run as admin";
+                    icon: Icons.shield;
+                }
+            }
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.line;
+            }
+        }
+
+        HorizontalLayout {
+            // ------------------------------------------------------ sidebar
+            Rectangle {
+                width: 248px;
+                background: Theme.surface;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 2px;
+                    alignment: start;
+                    NavItem {
+                        icon: Icons.house;
+                        text: "Home";
+                        active: true;
+                    }
+                    SectionLabel {
+                        text: "PROGRAMS";
+                    }
+                    NavItem {
+                        icon: Icons.app;
+                        text: "Installed apps";
+                        count: "182";
+                    }
+                }
+                Rectangle {
+                    x: parent.width - 1px;
+                    width: 1px;
+                    background: Theme.line;
+                }
+            }
+
+            // ------------------------------------------------------ page
+            HorizontalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                padding: 40px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    max-width: 1040px;
+                    alignment: start;
+                    spacing: 0px;
+
+                    Text {
+                        text: "Free up space on your PC";
+                        font-size: 26px;
+                        font-weight: 700;
+                        color: Theme.fg;
+                    }
+                    Rectangle { height: 6px; }
+                    Text {
+                        text: "Pick a drive to scan, review what LogCleaner finds, then clean it. Nothing is deleted until you tick it and confirm.";
+                        font-size: 15px;
+                        color: Theme.mut;
+                        wrap: word-wrap;
+                    }
+                    Rectangle { height: 24px; }
+
+                    Card {
+                        VerticalLayout {
+                            padding: 1px;
+                            for d[i] in root.drives: DriveRow {
+                                drive: d;
+                                first: i == 0;
+                                scan => { root.scan(i); }
+                            }
+                            Rectangle {
+                                background: Theme.row-hover;
+                                border-bottom-left-radius: 7px;
+                                border-bottom-right-radius: 7px;
+                                Rectangle {
+                                    y: 0;
+                                    height: 1px;
+                                    background: Theme.line;
+                                }
+                                VerticalLayout {
+                                    padding-left: 22px;
+                                    padding-right: 20px;
+                                    padding-top: 16px;
+                                    padding-bottom: 18px;
+                                    spacing: 2px;
+                                    Text {
+                                        text: "Scan one folder";
+                                        font-size: 15px;
+                                        font-weight: 600;
+                                        color: Theme.fg;
+                                    }
+                                    Text {
+                                        text: "Faster when you only want to clean a projects or downloads folder.";
+                                        font-size: 13px;
+                                        color: Theme.mut;
+                                    }
+                                    Rectangle { height: 10px; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        Field {
+                                            horizontal-stretch: 1;
+                                            text <=> root.folder;
+                                            accepted => { root.scan-folder(root.folder); }
+                                        }
+                                        Btn {
+                                            width: 84px;
+                                            text: "Scan";
+                                            primary: true;
+                                            clicked => { root.scan-folder(root.folder); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 32px; }
+                    Text {
+                        text: "Good to know";
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: Theme.fg;
+                    }
+                    Rectangle { height: 12px; }
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        Card {
+                            horizontal-stretch: 1;
+                            VerticalLayout {
+                                padding: 20px;
+                                spacing: 10px;
+                                alignment: start;
+                                Text {
+                                    text: "Safety labels";
+                                    font-size: 15px;
+                                    font-weight: 600;
+                                    color: Theme.fg;
+                                }
+                                for row in [
+                                    { name: "Safe", fg: #15803d, bg: #dcfce7, text: "Rebuilt or downloaded again automatically. Fine to delete." },
+                                    { name: "Review", fg: #b45309, bg: #fef3c7, text: "Probably fine, but check it is not something you need." },
+                                    { name: "Do not delete", fg: #dc2626, bg: #fee2e2, text: "Windows, installed programs, your profile folders, .git. Never deleted." },
+                                ]: HorizontalLayout {
+                                    spacing: 10px;
+                                    HorizontalLayout {
+                                        min-width: 110px;
+                                        max-width: 110px;
+                                        alignment: start;
+                                        VerticalLayout {
+                                            alignment: start;
+                                            Pill {
+                                                text: row.name;
+                                                fg: row.fg;
+                                                background: row.bg;
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        text: row.text;
+                                        horizontal-stretch: 1;
+                                        font-size: 14px;
+                                        color: Theme.fg2;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+                        Card {
+                            horizontal-stretch: 1;
+                            VerticalLayout {
+                                padding: 20px;
+                                spacing: 6px;
+                                alignment: start;
+                                Text {
+                                    text: "Keyboard shortcuts";
+                                    font-size: 15px;
+                                    font-weight: 600;
+                                    color: Theme.fg;
+                                }
+                                Rectangle { height: 4px; }
+                                for row in [
+                                    { keys: "Up / Down", what: "Move through a list" },
+                                    { keys: "Space", what: "Tick the highlighted row" },
+                                    { keys: "Del", what: "Clean what is ticked" },
+                                    { keys: "Enter / Backspace", what: "Open a folder / go back up" },
+                                    { keys: "Ctrl F", what: "Search" },
+                                    { keys: "Esc", what: "Clear search, close a dialog" },
+                                ]: HorizontalLayout {
+                                    spacing: 10px;
+                                    HorizontalLayout {
+                                        min-width: 140px;
+                                        max-width: 140px;
+                                        alignment: start;
+                                        Kbd {
+                                            text: row.keys;
+                                        }
+                                    }
+                                    Text {
+                                        text: row.what;
+                                        horizontal-stretch: 1;
+                                        font-size: 14px;
+                                        color: Theme.fg2;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

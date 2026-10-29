@@ -112,9 +112,9 @@ pub struct PathReason {
 pub struct Init {
     pub drives: Vec<Drive>,
     pub is_admin: bool,
-    /// `logcleaner.exe D:\projects` scans that folder right away.
+    /// `freespace.exe D:\projects` scans that folder right away.
     pub scan_on_start: Option<String>,
-    /// `logcleaner.exe --apps` opens the installed apps page.
+    /// `freespace.exe --apps` opens the installed apps page.
     pub open_apps: bool,
 }
 
@@ -872,7 +872,7 @@ mod tests {
 
     #[test]
     fn roots_are_normalized() {
-        // `logcleaner.exe "C:\"` arrives as `C:"`: the backslash escapes the closing quote.
+        // `freespace.exe "C:\"` arrives as `C:"`: the backslash escapes the closing quote.
         for input in ["C:\"", "C:", "c:/", " \"C:\\\" "] {
             assert_eq!(normalize_root(input).map(|p| path_str(&p).to_uppercase()), Ok("C:\\".to_string()), "{input}");
         }

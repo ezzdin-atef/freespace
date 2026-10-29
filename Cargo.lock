@@ -841,6 +841,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "freespace"
+version = "0.1.0"
+dependencies = [
+ "rayon",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "trash",
+ "windows-sys 0.59.0",
+ "winreg",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1743,20 +1757,6 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
-
-[[package]]
-name = "logcleaner"
-version = "0.1.0"
-dependencies = [
- "rayon",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "trash",
- "windows-sys 0.59.0",
- "winreg",
-]
 
 [[package]]
 name = "markup5ever"

@@ -1,6 +1,13 @@
+# Rust and Tauri build output
 /target
-/prototypes/*/target
-/prototypes/*/gen
 /gen
+
+# Frontend
 node_modules
 /dist
+
+# Local tool and editor settings
+.claude/
+.vscode/
+.idea/
+*.log

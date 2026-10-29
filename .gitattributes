@@ -1,0 +1,4 @@
+# Normalize text files to LF in the repository; Git converts per platform on checkout.
+* text=auto
+*.png binary
+*.ico binary

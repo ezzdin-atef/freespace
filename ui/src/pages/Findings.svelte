@@ -4,6 +4,7 @@
   import { session, type Show, type Sort } from "../lib/session.svelte";
   import { categoryIcon } from "../lib/icons";
   import { fmtCount, fmtSize } from "../lib/format";
+  import { handleListKeys } from "../lib/listKeys";
   import { SAFETY_LABEL, SAFETY_TONE } from "../lib/safety";
   import BulkBar from "../components/BulkBar.svelte";
   import Button from "../components/Button.svelte";
@@ -87,39 +88,19 @@
     table?.scrollToTop();
   });
 
-  /** Arrow keys move the focused row, Space ticks it, Del cleans, Ctrl+F searches, Esc clears the filter. */
   function onkeydown(e: KeyboardEvent) {
-    if (e.ctrlKey && e.key.toLowerCase() === "f") {
-      e.preventDefault();
-      search?.focus();
-      return;
-    }
-    const el = document.activeElement as HTMLElement | null;
-    const typing = el?.matches("input, textarea, select, [contenteditable]") ?? false;
-    if (typing || document.querySelector("[role=dialog][aria-modal=true]")) return;
-    if (e.key === "Escape") {
-      session.filter = "";
-      return;
-    }
-    // A button focused from the keyboard keeps Space/Enter; one focused by a mouse click does not.
-    if (el?.matches("button") && el.matches(":focus-visible")) return;
-
-    const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
-    if (step && visible.length > 0) {
-      e.preventDefault();
-      el?.blur();
-      const pos = visible.findIndex((f) => f.id === session.focusId);
-      const next = pos < 0 ? 0 : Math.min(Math.max(pos + step, 0), visible.length - 1);
-      session.focusId = visible[next].id;
-      table?.scrollToIndex(next);
-    } else if (e.key === " " && session.focusId !== null) {
-      e.preventDefault();
-      el?.blur();
-      session.toggle(session.focusId);
-    } else if (e.key === "Delete") {
-      e.preventDefault();
-      session.requestClean();
-    }
+    handleListKeys(e, {
+      keys: visible.map((f) => f.id),
+      focused: session.focusId,
+      setFocus: (id, i) => {
+        session.focusId = id;
+        table?.scrollToIndex(i);
+      },
+      focusSearch: () => search?.focus(),
+      clearFilter: () => (session.filter = ""),
+      toggle: (id) => session.toggle(id),
+      clean: () => session.requestClean(),
+    });
   }
 </script>
 

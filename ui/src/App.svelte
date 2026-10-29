@@ -22,8 +22,9 @@
   import NavSection from "./components/NavSection.svelte";
   import Toast from "./components/Toast.svelte";
   import Home from "./pages/Home.svelte";
-  import Pending from "./pages/Pending.svelte";
+  import Apps from "./pages/Apps.svelte";
   import Report from "./pages/Report.svelte";
+  import Usage from "./pages/Usage.svelte";
   import Findings from "./pages/Findings.svelte";
   import FullClean from "./pages/FullClean.svelte";
   import Scanning from "./pages/Scanning.svelte";
@@ -34,7 +35,8 @@
   const is = (page: View["page"]) => v.page === page;
   const isCat = (c: string | null) => v.page === "cleanable" && v.category === c;
   // List pages lay out their own scrolling table and detail pane.
-  const fill = $derived(!session.scanning && (v.page === "cleanable" || v.page === "large" || v.page === "full"));
+  const scanPage = $derived(session.scanning !== null && v.page !== "apps");
+  const fill = $derived(!scanPage && v.page !== "home" && v.page !== "report");
 
   const scanStats = $derived.by(() => {
     const s = session.scan;
@@ -119,7 +121,7 @@
   </nav>
 
   <main class:fill>
-    {#if session.scanning && !is("apps")}
+    {#if scanPage && session.scanning}
       <Scanning p={session.scanning} />
     {:else if v.page === "home"}
       <Home />
@@ -132,9 +134,9 @@
     {:else if v.page === "report"}
       <Report />
     {:else if v.page === "usage"}
-      <Pending title="Space usage" phase={6} />
+      <Usage />
     {:else}
-      <Pending title="Installed apps" phase={6} />
+      <Apps />
     {/if}
   </main>
 </div>

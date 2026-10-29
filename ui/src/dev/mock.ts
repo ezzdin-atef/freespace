@@ -2,7 +2,7 @@
 // http://localhost:5173). Never bundled into the app: main.ts imports it only in dev mode outside Tauri.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AppRow, CleanRequest, FindingRow, Group, Plan, Report, SafetyKey, ScanSummary } from "../lib/api";
+import type { AppRow, CleanRequest, FindingRow, Group, LeftoverRow, Plan, Report, SafetyKey, ScanSummary, UsageLevel, UsageRow } from "../lib/api";
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
@@ -62,6 +62,35 @@ function makeFindings(): FindingRow[] {
   return rows;
 }
 
+/** A fake folder tree: every folder's children are derived from its path, so drilling down is stable. */
+function usageLevel(path: string, size: number): UsageLevel {
+  const rand = rng([...path].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 100000, 1));
+  const names = ["projects", "AppData", "Downloads", "Videos", "node_modules", "target", ".cache", "Documents", "backups", "games"];
+  const n = path.split("\\").length > 6 ? 0 : 4 + Math.floor(rand() * 6);
+  const weights = Array.from({ length: n }, () => rand() ** 2 + 0.02);
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  // One rotation for the whole level keeps sibling names unique, like a real directory.
+  const offset = Math.floor(rand() * names.length);
+  const children: UsageRow[] = weights
+    .map((w, i) => {
+      const name = names[(i + offset) % names.length];
+      const childSize = Math.round((size * 0.9 * w) / sum);
+      const safety: SafetyKey = name === "Documents" ? "protected" : name === "AppData" ? "review" : "safe";
+      return {
+        name,
+        path: `${path}\\${name}`,
+        size: childSize,
+        files: Math.round(childSize / 400_000),
+        has_children: path.split("\\").length < 6,
+        tag: name === "node_modules" ? "node_modules" : name === "target" ? "Build output & dev caches" : null,
+        safety,
+        note: safety === "protected" ? "Profile folder - delete individual items inside it instead" : "Mock note.",
+      };
+    })
+    .sort((a, b) => b.size - a.size);
+  return { name: path.split("\\").at(-1) ?? path, path, size, files: Math.round(size / 400_000), children };
+}
+
 export function install() {
   let findings = makeFindings();
   let report: Report | null = null;
@@ -76,10 +105,11 @@ export function install() {
   function plan(req: CleanRequest): Plan {
     const rows = (req.ids ?? []).map((id) => findings.find((f) => f.id === id)).filter((f) => f !== undefined);
     const ok = rows.filter((f) => f.safety !== "protected");
+    const folders = req.folders ?? [];
     return {
-      count: ok.length,
-      bytes: ok.reduce((n, f) => n + f.size, 0),
-      caution: ok.filter((f) => f.safety !== "safe").map((f) => `${f.path}  (${f.note})`),
+      count: ok.length + folders.length,
+      bytes: ok.reduce((n, f) => n + f.size, 0) + folders.length * 5 * GB,
+      caution: [...ok.filter((f) => f.safety !== "safe").map((f) => `${f.path}  (${f.note})`), ...folders.map((f) => `${f}  (picked by hand)`)],
       blocked: rows.filter((f) => f.safety === "protected").map((f) => ({ path: f.path, reason: "Marked Do not delete" })),
       warn: null,
       dism: !!req.dism,
@@ -132,18 +162,36 @@ export function install() {
     elapsed_ms: 20_800,
     cancelled: false,
   };
-  const apps: AppRow[] = ["Visual Studio Code", "Slack", "Zoom", "7-Zip", "Node.js"].map((name, id) => ({
+  const apps: AppRow[] = ["Visual Studio Code", "Slack", "Zoom", "7-Zip", "Node.js", "Old Toolbar"].map((name, id) => ({
     id,
     name,
-    publisher: "Mock Inc.",
+    publisher: id === 2 ? "Zoom Video" : "Mock Inc.",
     version: "1.0",
     installed: "2026-01-01",
-    location: null,
+    location: id === 2 ? null : "C:\\Program Files\\" + name,
     size: (id + 1) * 300 * MB,
     store: id === 2,
-    has_uninstaller: true,
+    // The last one has lost its uninstaller, to exercise "Remove from installed list".
+    has_uninstaller: id !== 5,
     removed: false,
   }));
+  const leftovers: Record<number, { gen: number; items: LeftoverRow[] }> = {};
+  let gen = 100;
+
+  function scanLeftovers(appId: number) {
+    const name = apps[appId].name;
+    setTimeout(() => {
+      leftovers[appId] = {
+        gen: ++gen,
+        items: [
+          { id: 0, path: "C:\\Users\\demo\\AppData\\Roaming\\" + name, what: "Settings folder", size: 120 * MB, files: 830, safety: "safe", note: "", selected: true },
+          { id: 1, path: "C:\\Users\\demo\\AppData\\Local\\" + name + "\\Cache", what: "Cache", size: 640 * MB, files: 5200, safety: "safe", note: "", selected: true },
+          { id: 2, path: "C:\\ProgramData\\" + name, what: "Shared data", size: 30 * MB, files: 40, safety: "review", note: "Other apps may use it", selected: false },
+        ],
+      };
+      emit("leftovers:changed", { app_id: appId });
+    }, 300);
+  }
 
   mockIPC(
     (cmd, args) => {
@@ -174,7 +222,57 @@ export function install() {
         case "reset_pc":
           return null;
         case "apps":
-          return { loading: false, items: apps };
+          // A fresh array each time, as real IPC gives (Svelte ignores reassigning the same one).
+          return { loading: false, items: [...apps] };
+        case "usage": {
+          const path = (args as { path: string | null }).path;
+          return usageLevel(path ?? scan.root, path ? Math.round(80 * GB * (path.length % 7 + 1) / 8) : 512 * GB);
+        }
+        case "scan_leftovers":
+          scanLeftovers((args as { appId: number }).appId);
+          return null;
+        case "leftovers": {
+          const l = leftovers[(args as { appId: number }).appId];
+          return { loading: false, gen: l?.gen ?? null, items: l?.items ?? [] };
+        }
+        case "plan_leftovers":
+        case "delete_leftovers": {
+          const { appId, ids } = args as { appId: number; ids: number[] };
+          const items = (leftovers[appId]?.items ?? []).filter((l) => ids.includes(l.id));
+          const p: Plan = {
+            count: items.length,
+            bytes: items.reduce((n, l) => n + l.size, 0),
+            caution: items.filter((l) => l.safety !== "safe").map((l) => `${l.path}  ${l.what} - ${l.note}`),
+            blocked: [],
+            warn: apps[appId].removed ? null : `${apps[appId].name} is still installed. Deleting its files will break it - uninstall it first.`,
+            dism: false,
+            hibernate_off: false,
+          };
+          if (cmd === "plan_leftovers") return p;
+          setTimeout(() => {
+            report = { freed: p.bytes, files: 900, failed: 0, failures: [], skipped: [], maintenance: [], processed: p.count, elapsed_ms: 400, used_trash: false, cancelled: false };
+            emit("clean:done", { report, app_id: appId, drives: DRIVES });
+            scanLeftovers(appId);
+          }, 600);
+          return null;
+        }
+        case "uninstall": {
+          const appId = (args as { appId: number }).appId;
+          emit("uninstall:progress", { app_id: appId, stage: "Follow the uninstaller window. LogCleaner waits until it is done." });
+          setTimeout(() => {
+            apps[appId] = { ...apps[appId], removed: true };
+            emit("uninstall:done", { app_id: appId, removed: true, message: `${apps[appId].name} was uninstalled.` });
+            scanLeftovers(appId);
+          }, 1500);
+          return null;
+        }
+        case "remove_entry": {
+          const appId = (args as { appId: number }).appId;
+          apps[appId] = { ...apps[appId], removed: true };
+          return `Removed ${apps[appId].name} from the installed list.`;
+        }
+        case "stop_uninstall":
+          return null;
         case "reveal":
           return null;
         default:

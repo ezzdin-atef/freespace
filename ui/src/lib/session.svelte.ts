@@ -1,8 +1,25 @@
 // App-wide state: mirrors the Rust session (drives, scan, progress) and holds pure UI state (view, toast).
 // Rust stays the source of truth; this re-queries it after every `...:done` event.
-import { SvelteSet } from "svelte/reactivity";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import * as api from "./api";
-import type { CleanProgress, CleanRequest, Drive, FindingRow, Group, Plan, Report, SafetyKey, ScanProgress, ScanSummary } from "./api";
+import { fmtSize } from "./format";
+import type {
+  AppRow,
+  CleanProgress,
+  CleanRequest,
+  Drive,
+  FindingRow,
+  Group,
+  Leftovers,
+  Plan,
+  Report,
+  SafetyKey,
+  ScanProgress,
+  ScanSummary,
+  UninstallProgress,
+  UsageLevel,
+  UsageRow,
+} from "./api";
 
 export type View =
   | { page: "home" }
@@ -16,9 +33,14 @@ export type View =
 export type Tone = "safe" | "review" | "danger";
 export type Show = "all" | SafetyKey;
 export type Sort = "size" | "name" | "group";
+export type AppShow = "all" | "desktop" | "store";
 
-/** What the confirm dialog is asking about. Phase 6 adds uninstall and leftovers. */
-export type Confirm = { kind: "clean"; plan: Plan; req: CleanRequest };
+/** What the confirm dialog is asking about. */
+export type Confirm =
+  | { kind: "clean"; plan: Plan; req: CleanRequest }
+  | { kind: "leftovers"; plan: Plan; appId: number; gen: number; ids: number[] }
+  | { kind: "uninstall"; appId: number }
+  | { kind: "entry"; appId: number };
 
 export interface Toast {
   id: number;
@@ -43,7 +65,6 @@ class Session {
   scanning = $state<ScanProgress | null>(null);
   groups = $state<Group[]>([]);
   hasReport = $state(false);
-  appCount = $state<number | null>(null);
 
   /** Findings of the current scan. Raw: rows are replaced as a whole, never mutated. */
   findings = $state.raw<FindingRow[]>([]);
@@ -60,6 +81,24 @@ class Session {
   cleaning = $state<CleanProgress | null>(null);
   report = $state<Report | null>(null);
 
+  // Space usage: one tree level at a time, loaded from Rust.
+  usage = $state.raw<UsageLevel | null>(null);
+  /** Folders opened below the scan root, outermost first. */
+  usagePath = $state.raw<string[]>([]);
+  usageFocus = $state<string | null>(null);
+  /** Folders ticked in Space usage (path -> size); cleaned together with the ticked findings. */
+  readonly selectedFolders = new SvelteMap<string, number>();
+
+  // Installed apps. App ids stay valid for the whole session (Rust loads the list once).
+  apps = $state.raw<AppRow[]>([]);
+  appsLoading = $state(true);
+  appShow = $state<AppShow>("all");
+  appFocus = $state<number | null>(null);
+  leftovers = $state<Record<number, Leftovers>>({});
+  /** Ticked leftover ids per app; reset to Rust's defaults whenever that app's list is rescanned. */
+  leftoverTicks = $state<Record<number, number[]>>({});
+  uninstalling = $state<UninstallProgress | null>(null);
+
   // List-page controls. Filter and sort carry over between pages, like the egui app; Show and focus reset.
   filter = $state("");
   sort = $state<Sort>("size");
@@ -74,7 +113,8 @@ class Session {
   readonly cleanGroups = $derived(this.groups.filter((g) => g.category !== LARGE));
   readonly cleanTotal = $derived(this.cleanGroups.reduce((n, g) => n + g.total, 0));
   readonly largeCount = $derived(this.groups.find((g) => g.category === LARGE)?.count ?? 0);
-  readonly busy = $derived(this.scanning !== null || this.cleaning !== null);
+  readonly busy = $derived(this.scanning !== null || this.cleaning !== null || this.uninstalling !== null);
+  readonly appCount = $derived(this.appsLoading && this.apps.length === 0 ? null : this.apps.length);
 
   readonly findingById = $derived(new Map(this.findings.map((f) => [f.id, f])));
   readonly groupByCategory = $derived(new Map(this.groups.map((g) => [g.category, g])));
@@ -90,6 +130,12 @@ class Session {
       count++;
       bytes += f.size;
       if (f.safety !== "safe") review++;
+    }
+    // Hand-picked folders always count as "to review", as in the egui app.
+    for (const size of this.selectedFolders.values()) {
+      count++;
+      bytes += size;
+      review++;
     }
     return { count, bytes, review };
   });
@@ -129,6 +175,13 @@ class Session {
 
   selectNone() {
     this.selected.clear();
+    this.selectedFolders.clear();
+  }
+
+  toggleFolder(row: UsageRow) {
+    if (row.safety === "protected") return;
+    if (this.selectedFolders.has(row.path)) this.selectedFolders.delete(row.path);
+    else this.selectedFolders.set(row.path, row.size);
   }
 
   // ---------------------------------------------------------------- cleaning
@@ -139,10 +192,11 @@ class Session {
     const req: CleanRequest = {
       scan_id: this.scan.scan_id,
       ids: [...this.selected],
+      folders: [...this.selectedFolders.keys()],
       dism: maintenance && this.dism,
       hibernate_off: maintenance && this.hibernateOff,
     };
-    if (req.ids!.length === 0 && !req.dism && !req.hibernate_off) return;
+    if (req.ids!.length === 0 && req.folders!.length === 0 && !req.dism && !req.hibernate_off) return;
     try {
       const plan = await api.planClean(req);
       if (plan.count === 0 && !plan.dism && !plan.hibernate_off) {
@@ -163,9 +217,35 @@ class Session {
     const c = this.confirm;
     if (!c) return;
     this.confirm = null;
+    const placeholder = (total: number, app_id: number | null): CleanProgress => ({
+      done: 0,
+      total,
+      freed: 0,
+      files: 0,
+      failed: 0,
+      current: "",
+      elapsed_ms: 0,
+      app_id,
+    });
     try {
-      await api.clean({ ...c.req, use_trash: this.useTrash });
-      this.cleaning = { done: 0, total: c.plan.count, freed: 0, files: 0, failed: 0, current: "", elapsed_ms: 0, app_id: null };
+      switch (c.kind) {
+        case "clean":
+          await api.clean({ ...c.req, use_trash: this.useTrash });
+          this.cleaning = placeholder(c.plan.count, null);
+          break;
+        case "leftovers":
+          await api.deleteLeftovers(c.appId, c.gen, c.ids, this.useTrash);
+          this.cleaning = placeholder(c.plan.count, c.appId);
+          break;
+        case "uninstall":
+          await api.uninstall(c.appId);
+          this.uninstalling = { app_id: c.appId, stage: "" };
+          break;
+        case "entry":
+          this.notify("safe", await api.removeEntry(c.appId));
+          await this.refreshApps();
+          break;
+      }
     } catch (e) {
       this.notify("danger", errorText(e));
     }
@@ -184,10 +264,20 @@ class Session {
       this.report = d.report;
       this.hasReport = true;
     }
+    if (d.app_id !== null) {
+      // Leftovers: Rust rescans the app's folders and sends `leftovers:changed`.
+      if (d.report) {
+        const failed = d.report.failed > 0 ? `, ${d.report.failed} files could not be deleted` : "";
+        this.notify("safe", `Deleted ${fmtSize(d.report.freed)} of leftovers${failed}.`);
+      }
+      return;
+    }
     // Cleaned findings drop out of the Rust session; reload so totals and the table match.
+    this.selectedFolders.clear();
     if (this.scan) await this.loadScan(this.scan);
     for (const id of [...this.selected]) if (!this.findingById.has(id)) this.selected.delete(id);
-    if (d.report && d.app_id === null) this.go({ page: "report" });
+    if (this.usage) await this.loadUsage(this.usagePath.at(-1) ?? null);
+    if (d.report) this.go({ page: "report" });
   }
 
   /** Ticks what Full clean picks (replacing the selection); with `run`, also asks to clean them. */
@@ -203,7 +293,90 @@ class Session {
   }
 
   reveal(f: FindingRow) {
-    if (f.kind !== "recycle_bin") api.reveal(f.path).catch((e) => this.notify("danger", errorText(e)));
+    if (f.kind !== "recycle_bin") this.revealPath(f.path);
+  }
+
+  revealPath(path: string) {
+    api.reveal(path).catch((e) => this.notify("danger", errorText(e)));
+  }
+
+  // ---------------------------------------------------------------- space usage
+
+  /** Loads one level of the scan tree (the root when `path` is null). */
+  async loadUsage(path: string | null) {
+    if (!this.scan) return;
+    try {
+      this.usage = await api.usage(this.scan.scan_id, path);
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    }
+  }
+
+  async openFolder(path: string) {
+    this.usagePath = [...this.usagePath, path];
+    this.usageFocus = null;
+    await this.loadUsage(path);
+  }
+
+  /** Goes back to depth `n` (0 = the scan root), focusing the folder we came out of. */
+  async usageUp(n: number) {
+    if (n >= this.usagePath.length) return;
+    const back = this.usagePath[n];
+    this.usagePath = this.usagePath.slice(0, n);
+    await this.loadUsage(this.usagePath.at(-1) ?? null);
+    this.usageFocus = back;
+  }
+
+  // ---------------------------------------------------------------- installed apps
+
+  focusApp(id: number) {
+    this.appFocus = id;
+    if (!(id in this.leftovers)) this.scanLeftovers(id);
+  }
+
+  async scanLeftovers(id: number) {
+    const prev = this.leftovers[id];
+    this.leftovers[id] = { gen: prev?.gen ?? null, items: prev?.items ?? [], loading: true };
+    try {
+      await api.scanLeftovers(id);
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    }
+  }
+
+  private async leftoversChanged(id: number) {
+    const l = await api.leftovers(id);
+    this.leftovers[id] = l;
+    this.leftoverTicks[id] = l.items.filter((i) => i.selected && i.safety !== "protected").map((i) => i.id);
+  }
+
+  toggleLeftover(appId: number, id: number) {
+    const ticks = this.leftoverTicks[appId] ?? [];
+    this.leftoverTicks[appId] = ticks.includes(id) ? ticks.filter((t) => t !== id) : [...ticks, id];
+  }
+
+  async requestDeleteLeftovers(appId: number) {
+    const l = this.leftovers[appId];
+    const ids = this.leftoverTicks[appId] ?? [];
+    if (!l || l.gen === null || ids.length === 0 || this.busy || this.confirm) return;
+    try {
+      const plan = await api.planLeftovers(appId, l.gen, ids);
+      this.confirm = { kind: "leftovers", plan, appId, gen: l.gen, ids };
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    }
+  }
+
+  askUninstall(appId: number) {
+    if (!this.busy) this.confirm = { kind: "uninstall", appId };
+  }
+
+  askRemoveEntry(appId: number) {
+    if (!this.busy) this.confirm = { kind: "entry", appId };
+  }
+
+  async stopUninstall() {
+    await api.stopUninstall();
   }
 
   /** Loads startup data, subscribes to backend events and restores any job already running. */
@@ -218,6 +391,14 @@ class Session {
     await api.on("apps:changed", () => this.refreshApps());
     await api.on("clean:progress", (p) => (this.cleaning = p));
     await api.on("clean:done", (d) => this.cleanDone(d));
+    await api.on("leftovers:changed", (e) => this.leftoversChanged(e.app_id));
+    await api.on("uninstall:progress", (p) => (this.uninstalling = p));
+    await api.on("uninstall:done", (d) => {
+      this.uninstalling = null;
+      if (d.removed) this.notify("safe", `${d.message} Review what it left behind on the right.`);
+      else this.notify("review", d.message);
+      this.refreshApps();
+    });
 
     try {
       const init = await api.init();
@@ -228,6 +409,7 @@ class Session {
       this.hasReport = st.has_report;
       this.scanning = st.scanning;
       this.cleaning = st.cleaning;
+      this.uninstalling = st.uninstalling;
       if (st.has_report) this.report = await api.report();
       if (st.scan) await this.loadScan(st.scan);
       if (init.open_apps) this.view = { page: "apps" };
@@ -270,6 +452,10 @@ class Session {
       this.findings = [];
       this.fullIds = [];
       this.selected.clear();
+      this.selectedFolders.clear();
+      this.usage = null;
+      this.usagePath = [];
+      this.usageFocus = null;
       this.focusId = null;
       if (this.view.page !== "apps") this.view = { page: "home" };
     } catch (e) {
@@ -317,9 +503,11 @@ class Session {
   private async refreshApps() {
     try {
       const list = await api.apps();
-      this.appCount = list.loading && list.items.length === 0 ? null : list.items.length;
-    } catch {
-      // The apps page reports load errors; the sidebar count can stay empty.
+      this.apps = list.items;
+      this.appsLoading = list.loading;
+    } catch (e) {
+      this.appsLoading = false;
+      this.notify("danger", `Could not read the installed apps: ${errorText(e)}`);
     }
   }
 }

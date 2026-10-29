@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Broom, Square, SquareCheck, Trash2 } from "@lucide/svelte";
+  import { AppWindow, Broom, ListX, Square, SquareCheck, Trash2 } from "@lucide/svelte";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
   import Button from "./Button.svelte";
@@ -7,12 +7,14 @@
   import Modal from "./Modal.svelte";
   import ProgressBar from "./ProgressBar.svelte";
 
-  // The confirm dialog for a clean and the progress dialog while one runs. Both block the page behind.
+  // Confirm dialogs, plus the progress dialogs while a clean or uninstall runs. All block the page behind.
   const c = $derived(session.confirm);
   const p = $derived(session.cleaning);
+  const u = $derived(session.uninstalling);
+  const appName = (id: number) => session.apps.find((a) => a.id === id)?.name ?? "this app";
 </script>
 
-{#if c}
+{#if c && (c.kind === "clean" || c.kind === "leftovers")}
   {@const plan = c.plan}
   <Modal icon={Trash2} tone="danger" title="Delete {fmtSize(plan.bytes)}?" onclose={() => session.cancelConfirm()}>
     <p>
@@ -52,6 +54,28 @@
       <Button label="Delete" icon={Trash2} variant="danger" onclick={() => session.confirmGo()} />
     {/snippet}
   </Modal>
+{:else if c?.kind === "uninstall"}
+  <Modal icon={Trash2} tone="danger" title="Uninstall {appName(c.appId)}?" width={480} onclose={() => session.cancelConfirm()}>
+    <p>
+      Windows runs the app's own uninstaller. Follow its window. When it finishes, LogCleaner lists the folders it left
+      behind so you can delete them too.
+    </p>
+    {#snippet footer()}
+      <Button label="Cancel" onclick={() => session.cancelConfirm()} />
+      <Button label="Uninstall" icon={Trash2} variant="danger" onclick={() => session.confirmGo()} />
+    {/snippet}
+  </Modal>
+{:else if c?.kind === "entry"}
+  <Modal icon={ListX} tone="review" title="Remove {appName(c.appId)} from the list?" width={480} onclose={() => session.cancelConfirm()}>
+    <p>
+      Its uninstaller is missing, so this only deletes its entry in Windows' installed programs list. Delete its folders
+      afterwards from the panel on the right.
+    </p>
+    {#snippet footer()}
+      <Button label="Cancel" onclick={() => session.cancelConfirm()} />
+      <Button label="Remove entry" variant="danger" onclick={() => session.confirmGo()} />
+    {/snippet}
+  </Modal>
 {/if}
 
 {#if p}
@@ -64,6 +88,16 @@
     <p class="current" title={p.current}>{p.current || " "}</p>
     {#snippet footer()}
       <Button label="Stop" icon={Square} onclick={() => session.stopClean()} />
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if u}
+  <Modal icon={AppWindow} title="Uninstalling {appName(u.app_id)}" width={460}>
+    <ProgressBar frac={null} />
+    <p>{u.stage || "Starting the uninstaller..."}</p>
+    {#snippet footer()}
+      <Button label="Stop waiting" onclick={() => session.stopUninstall()} />
     {/snippet}
   </Modal>
 {/if}

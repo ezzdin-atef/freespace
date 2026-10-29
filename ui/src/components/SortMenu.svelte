@@ -3,8 +3,12 @@
   import type { Sort } from "../lib/session.svelte";
   import Select from "./Select.svelte";
 
-  let { value, groupLabel = "Category", onchange }: { value: Sort; groupLabel?: string; onchange: (s: Sort) => void } =
-    $props();
+  /** `groupLabel` null leaves out the third option (pages with nothing to group by). */
+  let {
+    value,
+    groupLabel = "Category",
+    onchange,
+  }: { value: Sort; groupLabel?: string | null; onchange: (s: Sort) => void } = $props();
 
   let open = $state(false);
   let root: HTMLDivElement;
@@ -12,7 +16,7 @@
   const options = $derived([
     { key: "size" as const, icon: ArrowDownWideNarrow, label: "Size", detail: "largest first" },
     { key: "name" as const, icon: ArrowDownAZ, label: "Name", detail: "A to Z" },
-    { key: "group" as const, icon: Layers, label: groupLabel, detail: "" },
+    ...(groupLabel ? [{ key: "group" as const, icon: Layers, label: groupLabel, detail: "" }] : []),
   ]);
   const current = $derived(options.find((o) => o.key === value) ?? options[0]);
 

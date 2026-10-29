@@ -879,6 +879,9 @@ mod tests {
         write(&root.join("web/node_modules/a/index.js"), 1000);
         write(&root.join("web/src/main.js"), 50);
         write(&root.join("logs/app.log"), 300);
+        // The usage tree only keeps folders of 1 MB or more.
+        const BIG: u64 = 2 * 1024 * 1024;
+        write(&root.join("media/old/clip.bin"), BIG as usize);
 
         let app = mock_builder().manage(Shared::default()).build(mock_context(noop_assets())).unwrap();
         let h = app.handle().clone();
@@ -886,18 +889,27 @@ mod tests {
         assert_eq!(start_scan(h.clone(), app.state(), path_str(&root)).err().as_deref(), Some(BUSY));
         wait(&app, |s| s.scan_job.is_none());
 
+        // Space usage: browse one level at a time; unknown folders are refused.
+        let top = usage(app.state(), scan_id, None).unwrap();
+        let media = top.children.iter().find(|c| c.name == "media").expect("media is in the tree");
+        assert_eq!(media.size, BIG);
+        let inner = usage(app.state(), scan_id, Some(media.path.clone())).unwrap();
+        let old = inner.children.iter().find(|c| c.name == "old").expect("media\\old is in the tree");
+        assert!(usage(app.state(), scan_id, Some(path_str(&root.join("nope")))).is_err());
+
         let rows = findings(app.state(), scan_id).unwrap();
         let nm = rows.iter().find(|f| f.category == "NodeModules").expect("node_modules is found");
         let req = || CleanRequest {
             scan_id,
             ids: vec![nm.id],
-            folders: vec![],
+            folders: vec![old.path.clone()],
             dism: false,
             hibernate_off: false,
             use_trash: false,
         };
         let plan = plan_clean(app.state(), req()).unwrap();
-        assert_eq!((plan.count, plan.bytes), (1, 1000));
+        assert_eq!((plan.count, plan.bytes), (2, 1000 + BIG));
+        assert_eq!(plan.caution.len(), 1, "a hand-picked folder always needs a look");
 
         // Ids from an older scan are refused before anything is deleted.
         assert!(clean(h.clone(), app.state(), CleanRequest { scan_id: scan_id + 1, ..req() }).is_err());
@@ -907,9 +919,11 @@ mod tests {
         wait(&app, |s| s.clean_job.is_none());
 
         assert!(!root.join("web/node_modules").exists());
+        assert!(!root.join("media/old").exists(), "the picked folder is deleted");
+        assert!(root.join("media").exists(), "but not its parent");
         assert!(root.join("web/src/main.js").exists());
-        assert!(root.join("logs/app.log").exists(), "only the ticked item is deleted");
-        assert_eq!(report(app.state()).unwrap().freed, 1000);
+        assert!(root.join("logs/app.log").exists(), "only the ticked items are deleted");
+        assert_eq!(report(app.state()).unwrap().freed, 1000 + BIG);
         let left = findings(app.state(), scan_id).unwrap();
         assert!(left.iter().all(|f| f.category != "NodeModules"), "cleaned findings leave the results");
         fs::remove_dir_all(&root).unwrap();

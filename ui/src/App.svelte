@@ -1,74 +1,140 @@
 <script lang="ts">
-  import { AppWindow, Broom, Folder, HardDrive, House, Play, Shield, ShieldCheck } from "@lucide/svelte";
-  import { init, type Drive } from "./lib/api";
+  import {
+    AppWindow,
+    Broom,
+    ClipboardList,
+    File,
+    House,
+    LayoutGrid,
+    Play,
+    Shield,
+    ShieldCheck,
+    Sparkles,
+    Square,
+  } from "@lucide/svelte";
+  import { session, type View } from "./lib/session.svelte";
+  import { categoryIcon } from "./lib/icons";
+  import { fmtCompact, fmtCount, fmtSeconds, fmtSize } from "./lib/format";
   import Button from "./components/Button.svelte";
+  import DrivePicker from "./components/DrivePicker.svelte";
   import NavItem from "./components/NavItem.svelte";
   import NavSection from "./components/NavSection.svelte";
-  import Select from "./components/Select.svelte";
+  import Toast from "./components/Toast.svelte";
   import Home from "./pages/Home.svelte";
+  import Pending from "./pages/Pending.svelte";
+  import Results from "./pages/Results.svelte";
+  import Scanning from "./pages/Scanning.svelte";
 
-  type View = "home" | "apps";
+  session.start();
 
-  let drives = $state<Drive[]>([]);
-  let isAdmin = $state(false);
-  let root = $state("C:\\");
-  let view = $state<View>("home");
-  let error = $state("");
+  const v = $derived(session.view);
+  const is = (page: View["page"]) => v.page === page;
+  const isCat = (c: string | null) => v.page === "cleanable" && v.category === c;
 
-  init()
-    .then((r) => {
-      drives = r.drives;
-      isAdmin = r.is_admin;
-      root = (r.drives.find((d) => d.root.toUpperCase() === "C:\\") ?? r.drives[0])?.root ?? "C:\\";
-    })
-    .catch((e) => (error = String(e)));
-
-  const target = $derived.by(() => {
-    const d = drives.find((d) => d.root.toLowerCase() === root.trim().toLowerCase());
-    return d ? { icon: HardDrive, label: `${d.root.replace(/\\$/, "")}  ${d.kind} disk` } : { icon: Folder, label: root };
+  const scanStats = $derived.by(() => {
+    const s = session.scan;
+    if (!s) return null;
+    let tip = `${fmtCount(s.files)} files in ${fmtCount(s.dirs)} folders`;
+    if (s.errors > 0) tip += `\n${fmtCount(s.errors)} folders could not be read (run as administrator to see them)`;
+    return { text: `${fmtCompact(s.files)} files scanned in ${fmtSeconds(s.elapsed_ms)}`, tip };
   });
-
-  // Scanning is wired in phase 3; until then the buttons only pick the target.
-  function scan(path: string) {
-    root = path;
-  }
 </script>
 
 <header>
   <div class="logo"><Broom size={16} strokeWidth={2.25} /></div>
   <div class="brand">LogCleaner</div>
   <div class="sep"></div>
-  <Select icon={target.icon} value={target.label} title="Choose the drive or folder to scan" />
-  <Button label="Scan" icon={Play} primary title="Scan the selected drive or folder" onclick={() => scan(root)} />
+  <DrivePicker />
+  {#if session.scanning}
+    <Button label="Stop scan" icon={Square} onclick={() => session.stopScan()} />
+  {:else}
+    <Button label="Scan" icon={Play} primary title="Scan the selected drive or folder" onclick={() => session.startScan()} />
+  {/if}
   <div class="grow"></div>
-  {#if isAdmin}
+  {#if scanStats}
+    <span class="stats" title={scanStats.tip}>{scanStats.text}</span>
+  {/if}
+  {#if session.isAdmin}
     <span class="admin"><ShieldCheck size={16} /> Administrator</span>
   {:else}
     <Button
       label="Run as admin"
       icon={Shield}
       title="Needed to clean Windows temp, update cache, Windows.old and other users' files, and to uninstall most apps."
+      onclick={() => session.relaunchAdmin()}
     />
   {/if}
 </header>
 
 <div class="body">
   <nav>
-    <NavItem icon={House} label="Home" active={view === "home"} onclick={() => (view = "home")} />
+    <NavItem icon={House} label="Home" active={is("home")} onclick={() => session.go({ page: "home" })} />
+    <!-- Scan-dependent pages stay hidden until there is a scan, rather than showing as greyed-out rows. -->
+    {#if session.scan}
+      <NavSection label="Clean up" />
+      <NavItem
+        icon={Broom}
+        label="All cleanable"
+        count={fmtSize(session.cleanTotal)}
+        active={isCat(null)}
+        onclick={() => session.go({ page: "cleanable", category: null })}
+      />
+      {#each session.cleanGroups as g (g.category)}
+        <NavItem
+          icon={categoryIcon(g.category)}
+          label={g.label}
+          count={fmtSize(g.total)}
+          active={isCat(g.category)}
+          onclick={() => session.go({ page: "cleanable", category: g.category })}
+        />
+      {/each}
+      <NavSection label="Explore" />
+      <NavItem icon={LayoutGrid} label="Space usage" active={is("usage")} onclick={() => session.go({ page: "usage" })} />
+      <NavItem
+        icon={File}
+        label="Large files"
+        count={String(session.largeCount)}
+        active={is("large")}
+        onclick={() => session.go({ page: "large" })}
+      />
+      <NavItem icon={Sparkles} label="Full clean" active={is("full")} onclick={() => session.go({ page: "full" })} />
+    {/if}
+    {#if session.hasReport}
+      {#if !session.scan}<NavSection label="Explore" />{/if}
+      <NavItem icon={ClipboardList} label="Last report" active={is("report")} onclick={() => session.go({ page: "report" })} />
+    {/if}
     <NavSection label="Programs" />
-    <NavItem icon={AppWindow} label="Installed apps" active={view === "apps"} onclick={() => (view = "apps")} />
+    <NavItem
+      icon={AppWindow}
+      label="Installed apps"
+      count={session.appCount === null ? "..." : String(session.appCount)}
+      active={is("apps")}
+      onclick={() => session.go({ page: "apps" })}
+    />
   </nav>
 
   <main>
-    {#if error}
-      <p class="error">Could not load drives: {error}</p>
-    {:else if view === "home"}
-      <Home {drives} bind:folder={root} onscan={scan} />
+    {#if session.scanning && !is("apps")}
+      <Scanning p={session.scanning} />
+    {:else if v.page === "home"}
+      <Home />
+    {:else if v.page === "cleanable"}
+      <Results category={v.category} />
+    {:else if v.page === "large"}
+      <Pending title="Large files" phase={4} />
+    {:else if v.page === "full"}
+      <Pending title="Full clean" phase={5} />
+    {:else if v.page === "report"}
+      <Pending title="Last report" phase={5} />
+    {:else if v.page === "usage"}
+      <Pending title="Space usage" phase={6} />
     {:else}
-      <p class="todo">Installed apps arrive in phase 6.</p>
+      <Pending title="Installed apps" phase={6} />
     {/if}
   </main>
 </div>
+
+<Toast />
 
 <style>
   :global(#app) {
@@ -105,6 +171,10 @@
   .grow {
     flex: 1;
   }
+  .stats {
+    font-size: 13px;
+    color: var(--mut);
+  }
   .admin {
     display: inline-flex;
     align-items: center;
@@ -122,17 +192,12 @@
     flex-direction: column;
     gap: 2px;
     padding: 12px;
+    overflow-y: auto;
     background: var(--surface);
     border-right: 1px solid var(--line);
   }
   main {
     overflow: auto;
-    padding: 40px;
-  }
-  .error {
-    color: var(--danger);
-  }
-  .todo {
-    color: var(--mut);
+    padding: 32px 40px;
   }
 </style>

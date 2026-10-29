@@ -16,3 +16,19 @@ export function fmtSize(bytes: number): string {
 export function fmtCount(n: number): string {
   return Math.trunc(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
+
+/** "8,421", "52.3K", "1.20M" - short enough for stat cards and the top bar. */
+export function fmtCompact(n: number): string {
+  if (n < 10_000) return fmtCount(n);
+  if (n < 1_000_000) return `${(n / 1e3).toFixed(1)}K`;
+  return `${(n / 1e6).toFixed(2)}M`;
+}
+
+export function fmtSeconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** "C:\" -> "C:", folders unchanged. */
+export function driveLabel(root: string): string {
+  return root.replace(/\\$/, "");
+}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Folder, HardDrive, Play } from "@lucide/svelte";
-  import type { Drive } from "../lib/api";
-  import { fmtSize } from "../lib/format";
+  import { session } from "../lib/session.svelte";
+  import { driveLabel, fmtSize } from "../lib/format";
   import Button from "../components/Button.svelte";
   import Card from "../components/Card.svelte";
   import Field from "../components/Field.svelte";
@@ -9,18 +9,11 @@
   import Pill from "../components/Pill.svelte";
   import UsageBar from "../components/UsageBar.svelte";
 
-  let {
-    drives,
-    folder = $bindable(""),
-    onscan,
-  }: {
-    drives: Drive[];
-    folder?: string;
-    onscan: (root: string) => void;
-  } = $props();
+  let folder = $state("");
 
   // The system drive gets the primary button, so the page has one obvious action.
-  const system = $derived(drives.find((d) => d.root.toUpperCase() === "C:\\") ?? drives[0]);
+  const system = $derived(session.systemDrive());
+  const scan = (root: string) => root.trim() && session.startScan(root.trim());
 
   const shortcuts = [
     ["Up / Down", "Move through a list"],
@@ -40,13 +33,13 @@
 
   <div class="drives">
     <Card>
-      {#each drives as d (d.root)}
+      {#each session.drives as d (d.root)}
         {@const used = Math.max(d.total - d.free, 0)}
         {@const frac = used / Math.max(d.total, 1)}
         <div class="drive">
           <div class="tile"><HardDrive size={18} /></div>
           <div class="name">
-            <b>{d.kind} disk ({d.root.replace(/\\$/, "")})</b>
+            <b>{d.kind} disk ({driveLabel(d.root)})</b>
             <small>{fmtSize(d.free)} free of {fmtSize(d.total)}</small>
           </div>
           <div class="usage">
@@ -56,7 +49,14 @@
             </div>
             <UsageBar {frac} />
           </div>
-          <Button label="Scan" icon={Play} primary={d === system} width={92} onclick={() => onscan(d.root)} />
+          <Button
+            label="Scan"
+            icon={Play}
+            primary={d.root === system?.root}
+            disabled={session.busy}
+            width={92}
+            onclick={() => scan(d.root)}
+          />
         </div>
       {/each}
       <div class="folder">
@@ -67,9 +67,9 @@
             bind:value={folder}
             icon={Folder}
             placeholder="Paste a folder path, e.g. D:\projects"
-            onenter={() => onscan(folder)}
+            onenter={() => scan(folder)}
           />
-          <Button label="Scan" primary width={84} onclick={() => onscan(folder)} />
+          <Button label="Scan" primary disabled={session.busy} width={84} onclick={() => scan(folder)} />
         </div>
       </div>
     </Card>

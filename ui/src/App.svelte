@@ -16,13 +16,16 @@
   import { categoryIcon } from "./lib/icons";
   import { fmtCompact, fmtCount, fmtSeconds, fmtSize } from "./lib/format";
   import Button from "./components/Button.svelte";
+  import Dialogs from "./components/Dialogs.svelte";
   import DrivePicker from "./components/DrivePicker.svelte";
   import NavItem from "./components/NavItem.svelte";
   import NavSection from "./components/NavSection.svelte";
   import Toast from "./components/Toast.svelte";
   import Home from "./pages/Home.svelte";
   import Pending from "./pages/Pending.svelte";
+  import Report from "./pages/Report.svelte";
   import Findings from "./pages/Findings.svelte";
+  import FullClean from "./pages/FullClean.svelte";
   import Scanning from "./pages/Scanning.svelte";
 
   session.start();
@@ -31,7 +34,7 @@
   const is = (page: View["page"]) => v.page === page;
   const isCat = (c: string | null) => v.page === "cleanable" && v.category === c;
   // List pages lay out their own scrolling table and detail pane.
-  const fill = $derived(!session.scanning && (v.page === "cleanable" || v.page === "large"));
+  const fill = $derived(!session.scanning && (v.page === "cleanable" || v.page === "large" || v.page === "full"));
 
   const scanStats = $derived.by(() => {
     const s = session.scan;
@@ -125,9 +128,9 @@
     {:else if v.page === "large"}
       <Findings category={null} large />
     {:else if v.page === "full"}
-      <Pending title="Full clean" phase={5} />
+      <FullClean />
     {:else if v.page === "report"}
-      <Pending title="Last report" phase={5} />
+      <Report />
     {:else if v.page === "usage"}
       <Pending title="Space usage" phase={6} />
     {:else}
@@ -136,6 +139,7 @@
   </main>
 </div>
 
+<Dialogs />
 <Toast />
 
 <style>

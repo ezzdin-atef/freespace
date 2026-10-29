@@ -2,7 +2,7 @@
 // Rust stays the source of truth; this re-queries it after every `...:done` event.
 import { SvelteSet } from "svelte/reactivity";
 import * as api from "./api";
-import type { Drive, FindingRow, Group, SafetyKey, ScanProgress, ScanSummary } from "./api";
+import type { CleanProgress, CleanRequest, Drive, FindingRow, Group, Plan, Report, SafetyKey, ScanProgress, ScanSummary } from "./api";
 
 export type View =
   | { page: "home" }
@@ -16,6 +16,9 @@ export type View =
 export type Tone = "safe" | "review" | "danger";
 export type Show = "all" | SafetyKey;
 export type Sort = "size" | "name" | "group";
+
+/** What the confirm dialog is asking about. Phase 6 adds uninstall and leftovers. */
+export type Confirm = { kind: "clean"; plan: Plan; req: CleanRequest };
 
 export interface Toast {
   id: number;
@@ -47,6 +50,15 @@ class Session {
   /** Ticked finding ids; only meaningful together with `scan.scan_id`. */
   readonly selected = new SvelteSet<number>();
   useTrash = $state(false);
+  /** Finding ids "Full clean" would tick (decided in Rust). */
+  fullIds = $state.raw<number[]>([]);
+  /** Extra maintenance offered on the Full clean page. */
+  dism = $state(false);
+  hibernateOff = $state(false);
+
+  confirm = $state<Confirm | null>(null);
+  cleaning = $state<CleanProgress | null>(null);
+  report = $state<Report | null>(null);
 
   // List-page controls. Filter and sort carry over between pages, like the egui app; Show and focus reset.
   filter = $state("");
@@ -62,7 +74,7 @@ class Session {
   readonly cleanGroups = $derived(this.groups.filter((g) => g.category !== LARGE));
   readonly cleanTotal = $derived(this.cleanGroups.reduce((n, g) => n + g.total, 0));
   readonly largeCount = $derived(this.groups.find((g) => g.category === LARGE)?.count ?? 0);
-  readonly busy = $derived(this.scanning !== null);
+  readonly busy = $derived(this.scanning !== null || this.cleaning !== null);
 
   readonly findingById = $derived(new Map(this.findings.map((f) => [f.id, f])));
   readonly groupByCategory = $derived(new Map(this.groups.map((g) => [g.category, g])));
@@ -119,10 +131,75 @@ class Session {
     this.selected.clear();
   }
 
-  /** Opens the confirm dialog for what is ticked. The clean flow moves over in migration phase 5. */
-  requestClean() {
-    if (this.selection.count === 0 || this.busy) return;
-    this.notify("review", "Cleaning moves to the new interface in the next migration phase. Use the egui build to clean for now.");
+  // ---------------------------------------------------------------- cleaning
+
+  /** Asks Rust what cleaning the ticked rows would do, then opens the confirm dialog. */
+  async requestClean(maintenance = false) {
+    if (!this.scan || this.busy || this.confirm) return;
+    const req: CleanRequest = {
+      scan_id: this.scan.scan_id,
+      ids: [...this.selected],
+      dism: maintenance && this.dism,
+      hibernate_off: maintenance && this.hibernateOff,
+    };
+    if (req.ids!.length === 0 && !req.dism && !req.hibernate_off) return;
+    try {
+      const plan = await api.planClean(req);
+      if (plan.count === 0 && !plan.dism && !plan.hibernate_off) {
+        this.notify("review", "Nothing in this selection can be cleaned - every item is protected.");
+        return;
+      }
+      this.confirm = { kind: "clean", plan, req };
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    }
+  }
+
+  cancelConfirm() {
+    this.confirm = null;
+  }
+
+  async confirmGo() {
+    const c = this.confirm;
+    if (!c) return;
+    this.confirm = null;
+    try {
+      await api.clean({ ...c.req, use_trash: this.useTrash });
+      this.cleaning = { done: 0, total: c.plan.count, freed: 0, files: 0, failed: 0, current: "", elapsed_ms: 0, app_id: null };
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    }
+  }
+
+  async stopClean() {
+    await api.stopClean();
+  }
+
+  private async cleanDone(d: api.CleanDone) {
+    this.cleaning = null;
+    this.drives = d.drives;
+    if (!d.report) {
+      this.notify("danger", "Cleaning stopped unexpectedly.");
+    } else {
+      this.report = d.report;
+      this.hasReport = true;
+    }
+    // Cleaned findings drop out of the Rust session; reload so totals and the table match.
+    if (this.scan) await this.loadScan(this.scan);
+    for (const id of [...this.selected]) if (!this.findingById.has(id)) this.selected.delete(id);
+    if (d.report && d.app_id === null) this.go({ page: "report" });
+  }
+
+  /** Ticks what Full clean picks (replacing the selection); with `run`, also asks to clean them. */
+  async fullClean(run: boolean) {
+    this.selected.clear();
+    for (const id of this.fullIds) this.selected.add(id);
+    if (run) await this.requestClean(true);
+    else this.go({ page: "cleanable", category: null });
+  }
+
+  async resetPc() {
+    await api.resetPc().catch((e) => this.notify("danger", errorText(e)));
   }
 
   reveal(f: FindingRow) {
@@ -139,6 +216,8 @@ class Session {
     });
     await api.on("scan:done", (d) => this.scanDone(d));
     await api.on("apps:changed", () => this.refreshApps());
+    await api.on("clean:progress", (p) => (this.cleaning = p));
+    await api.on("clean:done", (d) => this.cleanDone(d));
 
     try {
       const init = await api.init();
@@ -148,6 +227,8 @@ class Session {
       const st = await api.status();
       this.hasReport = st.has_report;
       this.scanning = st.scanning;
+      this.cleaning = st.cleaning;
+      if (st.has_report) this.report = await api.report();
       if (st.scan) await this.loadScan(st.scan);
       if (init.open_apps) this.view = { page: "apps" };
       else if (init.scan_on_start && !st.scanning) await this.startScan(init.scan_on_start);
@@ -187,6 +268,7 @@ class Session {
       this.scan = null;
       this.groups = [];
       this.findings = [];
+      this.fullIds = [];
       this.selected.clear();
       this.focusId = null;
       if (this.view.page !== "apps") this.view = { page: "home" };
@@ -214,9 +296,11 @@ class Session {
   private async loadScan(summary: ScanSummary) {
     this.scan = summary;
     try {
-      const [groups, findings] = await Promise.all([api.groups(summary.scan_id), api.findings(summary.scan_id)]);
+      const id = summary.scan_id;
+      const [groups, findings, fullIds] = await Promise.all([api.groups(id), api.findings(id), api.fullCleanIds(id)]);
       this.groups = groups;
       this.findings = findings;
+      this.fullIds = fullIds;
     } catch (e) {
       this.notify("danger", errorText(e));
     }

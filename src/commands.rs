@@ -17,7 +17,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 pub type Shared = Mutex<Session>;
 type Res<T> = Result<T, String>;
@@ -29,17 +29,17 @@ fn lock(m: &Shared) -> MutexGuard<'_, Session> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn lock_app(app: &AppHandle) -> MutexGuard<'_, Session> {
+fn lock_app<R: Runtime>(app: &AppHandle<R>) -> MutexGuard<'_, Session> {
     lock(app.state::<Shared>().inner())
 }
 
 /// Waits for a job's result on a new thread, emitting `progress()` as `event` every tick until it arrives.
-fn pump<T, P>(
-    app: AppHandle,
+fn pump<R: Runtime, T, P>(
+    app: AppHandle<R>,
     rx: Receiver<T>,
     event: &'static str,
     progress: impl Fn() -> P + Send + 'static,
-    done: impl FnOnce(&AppHandle, Option<T>) + Send + 'static,
+    done: impl FnOnce(&AppHandle<R>, Option<T>) + Send + 'static,
 ) where
     T: Send + 'static,
     P: Serialize + Clone,
@@ -230,7 +230,7 @@ fn normalize_root(input: &str) -> Res<PathBuf> {
 
 /// Starts scanning `root`; returns the new scan id. Events: `scan:progress`, `scan:done`.
 #[tauri::command]
-pub fn start_scan(app: AppHandle, state: State<'_, Shared>, root: String) -> Res<u64> {
+pub fn start_scan<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, root: String) -> Res<u64> {
     let path = normalize_root(&root)?;
     let mut s = lock(&state);
     if s.busy() {
@@ -531,7 +531,7 @@ pub struct CleanDone {
     pub drives: Vec<Drive>,
 }
 
-fn start_clean(app: AppHandle, s: &mut Session, plan: Plan, use_trash: bool) -> Res<()> {
+fn start_clean<R: Runtime>(app: AppHandle<R>, s: &mut Session, plan: Plan, use_trash: bool) -> Res<()> {
     if s.busy() {
         return Err(BUSY.into());
     }
@@ -569,7 +569,7 @@ fn start_clean(app: AppHandle, s: &mut Session, plan: Plan, use_trash: bool) -> 
 
 /// Starts cleaning. Events: `clean:progress`, `clean:done`.
 #[tauri::command]
-pub fn clean(app: AppHandle, state: State<'_, Shared>, req: CleanRequest) -> Res<()> {
+pub fn clean<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, req: CleanRequest) -> Res<()> {
     let mut s = lock(&state);
     let plan = request_plan(&s, &req)?;
     start_clean(app, &mut s, plan, req.use_trash)
@@ -591,7 +591,7 @@ pub fn report(state: State<'_, Shared>) -> Option<Report> {
 // ------------------------------------------------------------------ installed apps
 
 /// Loads the installed apps list in the background, once, at startup. Event: `apps:changed`.
-pub fn start_apps_load(app: &AppHandle) {
+pub fn start_apps_load<R: Runtime>(app: &AppHandle<R>) {
     lock_app(app).apps_loading = true;
     let rx = apps::load();
     let app = app.clone();
@@ -665,7 +665,7 @@ pub struct AppEvent {
 }
 
 /// (Re)scans one app's leftovers in the background. Event: `leftovers:changed`.
-fn request_leftovers(app: &AppHandle, s: &mut Session, app_id: usize) {
+fn request_leftovers<R: Runtime>(app: &AppHandle<R>, s: &mut Session, app_id: usize) {
     let Some(target) = s.apps.get(app_id).cloned() else { return };
     s.leftovers_loading.insert(app_id);
     let rx = apps::start_leftovers(target, s.apps.clone());
@@ -684,7 +684,7 @@ fn request_leftovers(app: &AppHandle, s: &mut Session, app_id: usize) {
 }
 
 #[tauri::command]
-pub fn scan_leftovers(app: AppHandle, state: State<'_, Shared>, app_id: usize) -> Res<()> {
+pub fn scan_leftovers<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, app_id: usize) -> Res<()> {
     let mut s = lock(&state);
     s.app(app_id)?;
     request_leftovers(&app, &mut s, app_id);
@@ -747,8 +747,8 @@ pub fn plan_leftovers(state: State<'_, Shared>, app_id: usize, gen: u64, ids: Ve
 
 /// Deletes ticked leftovers. Events: `clean:progress`, `clean:done` (with `app_id`), then `leftovers:changed`.
 #[tauri::command]
-pub fn delete_leftovers(
-    app: AppHandle,
+pub fn delete_leftovers<R: Runtime>(
+    app: AppHandle<R>,
     state: State<'_, Shared>,
     app_id: usize,
     gen: u64,
@@ -779,7 +779,7 @@ pub struct UninstallDone {
 
 /// Runs the app's uninstaller. Events: `uninstall:progress`, `uninstall:done`, then `leftovers:changed`.
 #[tauri::command]
-pub fn uninstall(app: AppHandle, state: State<'_, Shared>, app_id: usize) -> Res<()> {
+pub fn uninstall<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, app_id: usize) -> Res<()> {
     let mut s = lock(&state);
     if s.busy() {
         return Err(BUSY.into());
@@ -835,7 +835,7 @@ pub fn reveal(path: String) {
 
 /// Restarts elevated (UAC prompt); this process exits when the elevated one starts.
 #[tauri::command]
-pub fn relaunch_admin(app: AppHandle) -> bool {
+pub fn relaunch_admin<R: Runtime>(app: AppHandle<R>) -> bool {
     let ok = win::relaunch_as_admin();
     if ok {
         app.exit(0);
@@ -846,4 +846,72 @@ pub fn relaunch_admin(app: AppHandle) -> bool {
 #[tauri::command]
 pub fn reset_pc() {
     win::open_reset_this_pc();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+
+    fn write(p: &Path, bytes: usize) {
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, vec![b'x'; bytes]).unwrap();
+    }
+
+    fn wait(app: &tauri::App<MockRuntime>, done: impl Fn(&Session) -> bool) {
+        for _ in 0..600 {
+            if done(&lock(app.state::<Shared>().inner())) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("background job did not finish");
+    }
+
+    /// The UI's round trip through the real commands and job pumps: scan a fixture, plan, clean, check the disk.
+    #[test]
+    fn scan_plan_clean_round_trip() {
+        // Not %TEMP%: that is under AppData, where dev-artifact matching is intentionally off.
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("commands-fixture");
+        let _ = fs::remove_dir_all(&root);
+        write(&root.join("web/package.json"), 10);
+        write(&root.join("web/node_modules/a/index.js"), 1000);
+        write(&root.join("web/src/main.js"), 50);
+        write(&root.join("logs/app.log"), 300);
+
+        let app = mock_builder().manage(Shared::default()).build(mock_context(noop_assets())).unwrap();
+        let h = app.handle().clone();
+        let scan_id = start_scan(h.clone(), app.state(), path_str(&root)).unwrap();
+        assert_eq!(start_scan(h.clone(), app.state(), path_str(&root)).err().as_deref(), Some(BUSY));
+        wait(&app, |s| s.scan_job.is_none());
+
+        let rows = findings(app.state(), scan_id).unwrap();
+        let nm = rows.iter().find(|f| f.category == "NodeModules").expect("node_modules is found");
+        let req = || CleanRequest {
+            scan_id,
+            ids: vec![nm.id],
+            folders: vec![],
+            dism: false,
+            hibernate_off: false,
+            use_trash: false,
+        };
+        let plan = plan_clean(app.state(), req()).unwrap();
+        assert_eq!((plan.count, plan.bytes), (1, 1000));
+
+        // Ids from an older scan are refused before anything is deleted.
+        assert!(clean(h.clone(), app.state(), CleanRequest { scan_id: scan_id + 1, ..req() }).is_err());
+        assert!(root.join("web/node_modules").exists());
+
+        clean(h, app.state(), req()).unwrap();
+        wait(&app, |s| s.clean_job.is_none());
+
+        assert!(!root.join("web/node_modules").exists());
+        assert!(root.join("web/src/main.js").exists());
+        assert!(root.join("logs/app.log").exists(), "only the ticked item is deleted");
+        assert_eq!(report(app.state()).unwrap().freed, 1000);
+        let left = findings(app.state(), scan_id).unwrap();
+        assert!(left.iter().all(|f| f.category != "NodeModules"), "cleaned findings leave the results");
+        fs::remove_dir_all(&root).unwrap();
+    }
 }

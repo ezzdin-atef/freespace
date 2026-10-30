@@ -191,7 +191,7 @@ export function install() {
         items: [
           { id: 0, path: "C:\\Users\\demo\\AppData\\Roaming\\" + name, what: "Settings folder", size: 120 * MB, files: 830, safety: "safe", note: "", selected: true },
           { id: 1, path: "C:\\Users\\demo\\AppData\\Local\\" + name + "\\Cache", what: "Cache", size: 640 * MB, files: 5200, safety: "safe", note: "", selected: true },
-          { id: 2, path: "C:\\ProgramData\\" + name, what: "Shared data", size: 30 * MB, files: 40, safety: "review", note: "Other apps may use it", selected: false },
+          { id: 2, path: "C:\\ProgramData\\" + name, what: "Shared data", size: 30 * MB, files: 40, safety: "review", note: "Name only partly matches - check it really belongs to this app before deleting", selected: false },
         ],
       };
       emit("leftovers:changed", { app_id: appId });

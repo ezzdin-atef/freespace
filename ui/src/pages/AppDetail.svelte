@@ -94,7 +94,7 @@
           <div class="body">
             <div class="top"><b>{l.what}</b><b>{fmtSize(l.size)}</b></div>
             <p class="lpath">{l.path}</p>
-            {#if l.safety !== "safe"}<Pill tone={SAFETY_TONE[l.safety]} label={l.note} />{/if}
+            {#if l.safety !== "safe"}<Pill tone={SAFETY_TONE[l.safety]} label={l.note} wrap />{/if}
           </div>
         </li>
       {/each}

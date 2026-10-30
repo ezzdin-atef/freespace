@@ -234,6 +234,7 @@
   }
   aside {
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px;
     background: var(--surface);
     border-left: 1px solid var(--line);

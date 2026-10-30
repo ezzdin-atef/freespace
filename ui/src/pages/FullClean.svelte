@@ -156,6 +156,7 @@
   }
   aside {
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 12px;

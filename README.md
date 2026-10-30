@@ -57,17 +57,78 @@ gigabytes hiding in `node_modules`, build output, Python environments and tool c
 
 ## Features
 
-| | |
-| --- | --- |
-| **Blazing-fast scan** | Walks millions of files in seconds across all CPU cores, with live progress. Scan a whole drive or a single folder. |
-| **Smart cleanup** | Items grouped by category, each with a safety label, a reason, and a "how to get it back" note. |
-| **Space usage explorer** | Browse folders biggest-first with an interactive treemap and delete any folder in one tick. |
-| **Large file finder** | Surface the biggest files on the drive, wherever they hide. |
-| **Full clean** | Everything safe, plus Windows rollback leftovers, with optional DISM component cleanup and hibernation file removal. |
-| **App uninstaller** | Uninstall desktop and Microsoft Store apps, then sweep away the folders they leave behind. |
-| **Recycle Bin mode** | Send items to the Recycle Bin instead of deleting them permanently. |
-| **Clean report** | A summary after every clean of what was removed and how much space came back. |
-| **Auto-updates** | Installed copies update themselves from signed GitHub releases. |
+### Scanning
+
+- **Blazing-fast, parallel scan.** Walks millions of files in seconds across all CPU cores, with live
+  progress and a stop button.
+- **Any drive or any folder.** Pick a drive from the list, or paste a folder path such as `D:\projects` to
+  scan just that.
+- **One scan, every view.** Cleanup, space usage and large files all come from the same scan, so switching
+  pages is instant.
+
+### Smart cleanup
+
+- **Grouped by category.** Findings are sorted into clear categories (temp files, caches, `node_modules`,
+  and [more](#what-it-cleans)) with their total size.
+- **A safety label on every item.** Each one is **Safe**, **Review** or **Do not delete**, with a reason and
+  a "how to get it back" note.
+- **Filter, search and sort.** Show only Safe, Review or Protected items, filter by path, and sort by size,
+  path or category.
+- **Details before you delete.** Open any item to see why it was flagged, or jump to it with **Show in
+  Explorer**.
+
+### Space usage explorer
+
+- **Biggest-first folder browser.** Drill into any folder and see exactly where the space went.
+- **Interactive treemap.** A visual map of the current folder, sized by what each child takes up.
+- **Delete any folder in one tick.** Mark folders straight from the explorer; protected paths stay locked.
+
+### Large file finder
+
+- Surfaces the biggest files on the drive, wherever they hide, so old ISOs, videos and installers stop
+  slipping through.
+
+### Full clean
+
+- **Everything safe in one go,** plus Windows rollback leftovers such as previous Windows installations.
+- **Deeper system cleanup** with optional DISM component store cleanup and hibernation file removal.
+- **Preview first.** See the per-category breakdown and total, then run it or just pre-select the items to
+  review them yourself.
+- **Shortcut to Reset this PC** for when you want a truly fresh Windows.
+
+### App uninstaller
+
+- **Desktop and Microsoft Store apps** in one list, with publisher, version, install date and size.
+- **Search, filter and sort** by name, publisher, install date or size.
+- **Leftover sweep.** After uninstalling, Freespace looks for the folders the app left behind and lets you
+  remove them.
+- **Broken entries.** Remove stale entries for apps that are already gone from disk.
+
+### Safe by design
+
+- **Recycle Bin mode.** Send items to the Recycle Bin instead of deleting them permanently.
+- **Clean report.** A summary after every clean of what was removed, what was skipped, and how much space
+  came back.
+- **Admin only when needed.** Runs as a normal user and offers to restart elevated when a cleanup needs it.
+  See [How it keeps you safe](#how-it-keeps-you-safe) for the full picture.
+
+### Built to be fast to use
+
+- **Keyboard-first lists.** Every list page can be driven without the mouse:
+
+  | Key | Action |
+  | --- | --- |
+  | `Up` / `Down` | Move through a list |
+  | `Space` | Tick the highlighted row |
+  | `Del` | Clean what is ticked |
+  | `Enter` / `Backspace` | Open a folder / go back up |
+  | `Ctrl` + `F` | Search |
+  | `Esc` | Clear search, close a dialog |
+
+- **Auto-updates.** Installed copies check signed GitHub releases on start and every 6 hours, and offer a
+  one-click update from the top bar.
+- **Lightweight.** A small native Tauri app with no background service and nothing running when it is
+  closed.
 
 ## What it cleans
 

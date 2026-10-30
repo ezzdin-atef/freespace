@@ -33,8 +33,12 @@
     "longDescription": "Scans a drive in parallel, groups what can be cleaned (temp files, caches, build output, node_modules, logs, Windows leftovers, large files) and deletes only what you tick and confirm. Also uninstalls apps and removes what they leave behind.",
     "windows": {
       "nsis": {
-        "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "installMode": "perMachine",
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/installer/header.bmp",
+        "sidebarImage": "icons/installer/sidebar.bmp",
+        "installerHooks": "installer/hooks.nsh"
       }
     }
   },

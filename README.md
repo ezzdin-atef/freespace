@@ -12,6 +12,7 @@ deleting the wrong thing.
 [![Latest release](https://img.shields.io/github/v/release/ezzdin-atef/freespace?style=flat-square&color=2563eb)](https://github.com/ezzdin-atef/freespace/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/ezzdin-atef/freespace/total?style=flat-square&color=16a34a)](https://github.com/ezzdin-atef/freespace/releases)
 [![Release build](https://img.shields.io/github/actions/workflow/status/ezzdin-atef/freespace/release.yml?style=flat-square&label=build)](https://github.com/ezzdin-atef/freespace/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/github/license/ezzdin-atef/freespace?style=flat-square&color=eab308)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?style=flat-square)](#requirements)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24c8db?style=flat-square)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-stable-b7410e?style=flat-square)](https://www.rust-lang.org)
@@ -42,6 +43,7 @@ deleting the wrong thing.
 - [Architecture](#architecture)
 - [Contributing](#contributing)
 - [Acknowledgements](#acknowledgements)
+- [License](#license)
 
 ## Why Freespace
 
@@ -242,6 +244,10 @@ Safety is the core promise of this app: changes that widen what can be deleted g
 - [Svelte](https://svelte.dev) and [Vite](https://vitejs.dev) for the frontend
 - [rayon](https://github.com/rayon-rs/rayon) for effortless parallelism
 - [Solar icons](https://icon-sets.iconify.design/solar/) by 480 Design
+
+## License
+
+Freespace is released under the [MIT License](LICENSE). Copyright (c) 2026 Ezzdin Atef.
 
 <div align="center">
 

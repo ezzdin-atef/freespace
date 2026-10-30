@@ -3,6 +3,7 @@ name = "freespace"
 version = "1.0.0"
 edition = "2021"
 description = "Fast Windows disk scanner and cleaner"
+license = "MIT"
 
 [dependencies]
 # App logos: PNG-encoded and sent to the UI as data URLs.

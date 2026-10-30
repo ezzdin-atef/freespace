@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { IconContext } from "phosphor-svelte";
   import { AppWindow, Broom, Clipboard, File, House, Play, Shield, ShieldCheck, SpaceUsage, Sparkle, Stop } from "./lib/icons";
   import { session, type View } from "./lib/session.svelte";
   import { categoryIcon } from "./lib/icons";
@@ -36,8 +35,6 @@
   });
 </script>
 
-<!-- Every icon in the app is drawn in Phosphor's duotone weight unless it asks for another. -->
-<IconContext values={{ weight: "duotone" }}>
 <header>
   <div class="logo">
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
@@ -141,7 +138,6 @@
 
 <Dialogs />
 <Toast />
-</IconContext>
 
 <style>
   :global(#app) {

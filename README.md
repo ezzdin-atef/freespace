@@ -19,7 +19,8 @@ every item **Safe**, **Review** or **Do not delete**, and only deletes what you 
 
 - Backend: Rust (`src/`) - scanner, cleaner, safety rules, installed apps, exposed as Tauri commands.
 - Frontend: Svelte 5 + TypeScript + Vite (`ui/`), rendered by Tauri 2 / WebView2.
-- Icons: [Phosphor](https://phosphoricons.com) (duotone).
+- Icons: [Solar](https://icon-sets.iconify.design/solar/) (bold duotone), compiled into Svelte components at
+  build time by `unplugin-icons`; every icon is picked in `ui/src/lib/icons.ts`.
 
 ## Requirements
 

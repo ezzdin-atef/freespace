@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Folder, HardDrive, Play } from "../lib/icons";
+  import { Folder, FolderOpen, HardDrive, Play } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { driveLabel, fmtSize } from "../lib/format";
   import Button from "../components/Button.svelte";
@@ -14,6 +14,14 @@
   // The system drive gets the primary button, so the page has one obvious action.
   const system = $derived(session.systemDrive());
   const scan = (root: string) => root.trim() && session.startScan(root.trim());
+
+  async function browse() {
+    const path = await session.pickFolder(folder.trim());
+    if (path) {
+      folder = path;
+      scan(path);
+    }
+  }
 
   const shortcuts = [
     ["Up / Down", "Move through a list"],
@@ -68,6 +76,13 @@
             icon={Folder}
             placeholder="Paste a folder path, e.g. D:\projects"
             onenter={() => scan(folder)}
+          />
+          <Button
+            label="Browse"
+            icon={FolderOpen}
+            disabled={session.busy}
+            title="Choose a folder in Explorer and scan it"
+            onclick={browse}
           />
           <Button label="Scan" primary disabled={session.busy} width={84} onclick={() => scan(folder)} />
         </div>

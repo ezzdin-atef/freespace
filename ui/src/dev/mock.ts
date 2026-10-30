@@ -287,6 +287,8 @@ export function install() {
           return null;
         case "reveal":
           return null;
+        case "plugin:dialog|open":
+          return "D:\\projects";
         default:
           throw `The dev mock does not implement '${cmd}'.`;
       }

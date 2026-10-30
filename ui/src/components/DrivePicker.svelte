@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Folder, HardDrive } from "../lib/icons";
+  import { Folder, FolderOpen, HardDrive } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { driveLabel, fmtSize } from "../lib/format";
   import Button from "./Button.svelte";
@@ -7,7 +7,7 @@
   import Select from "./Select.svelte";
   import UsageBar from "./UsageBar.svelte";
 
-  // Top-bar target picker: pick a drive to scan it right away, or type a folder.
+  // Top-bar target picker: pick a drive to scan it right away, or type or browse to a folder.
   let open = $state(false);
   let folder = $state("");
   let root: HTMLDivElement;
@@ -28,6 +28,11 @@
     if (!path.trim()) return;
     open = false;
     session.startScan(path.trim());
+  }
+
+  async function browse() {
+    const path = await session.pickFolder(folder.trim());
+    if (path) scan(path);
   }
 
   function onWindowPointer(e: PointerEvent) {
@@ -61,6 +66,7 @@
       <div class="heading">Or a folder</div>
       <div class="row">
         <Field bind:value={folder} icon={Folder} placeholder="Paste a folder path, e.g. D:\projects" onenter={() => scan(folder)} />
+        <Button label="Browse" icon={FolderOpen} title="Choose a folder in Explorer and scan it" onclick={browse} />
         <Button label="Scan" primary width={84} onclick={() => scan(folder)} />
       </div>
     </div>
@@ -76,7 +82,7 @@
     top: calc(100% + 6px);
     left: 0;
     z-index: 20;
-    width: 380px;
+    width: 460px;
     padding: 6px;
     background: var(--surface);
     border: 1px solid var(--line);

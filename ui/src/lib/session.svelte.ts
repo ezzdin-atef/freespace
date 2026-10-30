@@ -1,5 +1,6 @@
 // App-wide state: mirrors the Rust session (drives, scan, progress) and holds pure UI state (view, toast).
 // Rust stays the source of truth; this re-queries it after every `...:done` event.
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import * as api from "./api";
 import { fmtSize } from "./format";
@@ -316,6 +317,17 @@ class Session {
 
   revealPath(path: string) {
     api.reveal(path).catch((e) => this.notify("danger", errorText(e)));
+  }
+
+  /** Opens Windows' folder picker; resolves to the chosen folder, or null when cancelled. */
+  async pickFolder(start?: string): Promise<string | null> {
+    try {
+      const path = await openDialog({ directory: true, title: "Choose a folder to scan", defaultPath: start || undefined });
+      return typeof path === "string" ? path : null;
+    } catch (e) {
+      this.notify("danger", errorText(e));
+      return null;
+    }
   }
 
   // ---------------------------------------------------------------- space usage

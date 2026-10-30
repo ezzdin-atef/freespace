@@ -1,0 +1,92 @@
+# Builds the Windows installer for a vX.Y.Z tag (pushed by scripts/release.ps1) and publishes a GitHub release
+# with the signed updater artifacts and latest.json, which the in-app updater reads.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v0.2.0"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Check the tag matches the app version
+        shell: bash
+        run: |
+          want="${TAG#v}"
+          conf=$(node -p "require('./tauri.conf.json').version")
+          pkg=$(node -p "require('./package.json').version")
+          cargo=$(grep -m1 -E '^version\s*=' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')
+          echo "tag=$want tauri.conf.json=$conf package.json=$pkg Cargo.toml=$cargo"
+          if [ "$conf" != "$want" ] || [ "$pkg" != "$want" ] || [ "$cargo" != "$want" ]; then
+            echo "::error::Tag $TAG does not match the version files. Use scripts/release.ps1 to release."
+            exit 1
+          fi
+          if grep -q REPLACE_WITH_CONTENTS_OF tauri.conf.json; then
+            echo "::error::The updater public key in tauri.conf.json is still a placeholder."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+
+      - name: Test
+        run: |
+          cargo test --quiet
+          npm test --silent
+          npm run check --silent
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseName: Freespace ${{ env.TAG }}
+          releaseBody: |
+            Download **Freespace-setup.exe** below and run it. Installed copies update themselves.
+
+            Windows 10 or 11 (64-bit) with WebView2 (built into Windows 11).
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          includeUpdaterJson: true
+
+      # A copy with a fixed name, so .../releases/latest/download/Freespace-setup.exe always points at the newest
+      # installer (the landing page and README link to it).
+      - name: Upload stable-named installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          exe=$(ls target/release/bundle/nsis/*-setup.exe | head -n1)
+          cp "$exe" Freespace-setup.exe
+          gh release upload "$TAG" Freespace-setup.exe --clobber

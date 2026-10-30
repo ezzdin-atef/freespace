@@ -13,6 +13,8 @@ mod win;
 fn main() {
     use commands::*;
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(Shared::default())
         .setup(|app| {
             start_apps_load(app.handle());

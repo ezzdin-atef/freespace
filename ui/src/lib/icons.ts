@@ -65,6 +65,7 @@ export {
   CheckIcon as Check,
   CheckSquareIcon as CheckSquare,
   ClipboardIcon as Clipboard,
+  DownloadIcon as Download,
   FileIcon as File,
   FolderIcon as Folder,
   FolderOpenIcon as FolderOpen,

@@ -9,6 +9,7 @@
   import NavItem from "./components/NavItem.svelte";
   import NavSection from "./components/NavSection.svelte";
   import Toast from "./components/Toast.svelte";
+  import UpdateButton from "./components/UpdateButton.svelte";
   import Home from "./pages/Home.svelte";
   import Apps from "./pages/Apps.svelte";
   import Report from "./pages/Report.svelte";
@@ -53,6 +54,7 @@
     <Button label="Scan" icon={Play} primary title="Scan the selected drive or folder" onclick={() => session.startScan()} />
   {/if}
   <div class="grow"></div>
+  <UpdateButton />
   {#if scanStats}
     <span class="stats" title={scanStats.tip}>{scanStats.text}</span>
   {/if}

@@ -4,6 +4,9 @@ A fast disk scanner and cleaner for Windows. Freespace reads a whole drive in pa
 (temp files, caches, build output, `node_modules`, logs, crash dumps, Windows leftovers, large files), labels
 every item **Safe**, **Review** or **Do not delete**, and only deletes what you tick and confirm.
 
+**[Download the latest installer](https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe)** (Windows 10 and 11).
+Installed copies update themselves.
+
 ## Features
 
 - **Scan** a drive or a folder: millions of files in seconds, with live progress.
@@ -62,6 +65,33 @@ npm test                 # frontend unit tests (Vitest)
 npm run check            # Svelte and TypeScript type check
 ```
 
+## Releases
+
+```sh
+npm run release                     # asks for the next version (patch / minor / major / custom)
+npm run release -- -Version 0.2.0   # no prompt
+npm run release -- -DryRun          # validate only
+```
+
+`scripts/release.ps1` checks you are on a clean, up-to-date `main`, that `tauri.conf.json`, `Cargo.toml` and
+`package.json` agree, and that the new version is valid semver, newer than the current one and not yet tagged.
+It then bumps all version files (lockfiles too), runs the checks, commits `Release vX.Y.Z`, tags it and pushes
+both. The tag starts `.github/workflows/release.yml`, which builds the NSIS installer, signs the update and
+publishes a GitHub release with `latest.json`; the app checks that file on start and every 6 hours and offers
+"Update to vX.Y.Z" in the top bar.
+
+The landing page lives in `site/` and is deployed to GitHub Pages by `.github/workflows/pages.yml`. It reads the
+latest release from the GitHub API, so it needs no redeploy per release.
+
+One-time setup:
+
+1. Generate the updater signing key (keep the private key secret; losing it means installed copies can no
+   longer update): `npx tauri signer generate -w ~/.tauri/freespace.key`
+2. Put the contents of `~/.tauri/freespace.key.pub` in `tauri.conf.json` > `plugins.updater.pubkey`.
+3. In the GitHub repo, add the secrets `TAURI_SIGNING_PRIVATE_KEY` (contents of `~/.tauri/freespace.key`) and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty if you set none).
+4. Settings > Pages > Source: **GitHub Actions**.
+
 ## Project layout
 
 ```
@@ -79,5 +109,8 @@ ui/src/         Svelte frontend
   pages/        one file per page
 icons/          app icons (generated from icons/source.svg with `npx tauri icon`)
 capabilities/   Tauri permissions
+scripts/        release.ps1: version bump, tag and push
+site/           landing page for GitHub Pages
+.github/        release and Pages workflows
 docs/           design notes, including the migration from the earlier egui UI
 ```

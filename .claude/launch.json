@@ -30,6 +30,18 @@
         "5176"
       ],
       "port": 5176
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5180",
+        "-d",
+        "site"
+      ],
+      "port": 5180
     }
   ]
 }

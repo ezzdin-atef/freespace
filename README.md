@@ -36,11 +36,20 @@ npm run tauri dev        # the app with hot reload
 npm run dev              # the UI alone in a browser, against a fake backend (ui/src/dev/mock.ts)
 ```
 
-Release build (the exe lands in `target/release/freespace.exe`):
+Release build: the installer lands in `target/release/bundle/nsis/Freespace_<version>_x64-setup.exe` and the
+portable exe in `target/release/freespace.exe`. The first build downloads Tauri's NSIS tools (needs internet).
+
+```sh
+npm run tauri build
+```
+
+Just the exe, no installer:
 
 ```sh
 npm run tauri build -- --no-bundle
 ```
+
+The installer is per-user (no admin prompt to install) and fetches the WebView2 runtime if it is missing.
 
 Some cleanups (Windows temp, Windows Update cache, other users' files, most uninstalls) need the app to run
 as administrator; the top bar offers to restart it elevated.

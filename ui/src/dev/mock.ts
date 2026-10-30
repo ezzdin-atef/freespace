@@ -91,6 +91,11 @@ function usageLevel(path: string, size: number): UsageLevel {
   return { name: path.split("\\").at(-1) ?? path, path, size, files: Math.round(size / 400_000), children };
 }
 
+function logo(letter: string, color: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="${color}"/><text x="24" y="32" font-family="Segoe UI" font-size="24" font-weight="700" fill="white" text-anchor="middle">${letter}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 export function install() {
   let findings = makeFindings();
   let report: Report | null = null;
@@ -167,7 +172,7 @@ export function install() {
     name,
     publisher: id === 2 ? "Zoom Video" : "Mock Inc.",
     version: "1.0",
-    installed: "2026-01-01",
+    installed: ["2025-03-14", "2026-02-01", "", "2024-11-30", "2026-09-12", "2023-06-05"][id],
     location: id === 2 ? null : "C:\\Program Files\\" + name,
     size: (id + 1) * 300 * MB,
     store: id === 2,
@@ -221,6 +226,13 @@ export function install() {
         case "stop_clean":
         case "reset_pc":
           return null;
+        case "app_logos":
+          // Coloured rounded squares with an initial, standing in for real icons (two apps keep the fallback).
+          return Object.fromEntries(
+            apps
+              .filter((a) => a.id !== 2 && a.id !== 5)
+              .map((a) => [a.id, logo(a.name[0], ["#2563eb", "#7c3aed", "#0891b2", "#16a34a", "#ea580c"][a.id % 5])]),
+          );
         case "apps":
           // A fresh array each time, as real IPC gives (Svelte ignores reassigning the same one).
           return { loading: false, items: [...apps] };

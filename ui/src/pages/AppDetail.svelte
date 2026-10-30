@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { AppWindow, FolderOpen, ListRemove, Rescan, Store, Trash } from "../lib/icons";
+  import { FolderOpen, ListRemove, Rescan, Trash } from "../lib/icons";
   import type { AppRow } from "../lib/api";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
   import { SAFETY_TONE } from "../lib/safety";
+  import AppLogo from "../components/AppLogo.svelte";
   import Button from "../components/Button.svelte";
   import Callout from "../components/Callout.svelte";
   import Checkbox from "../components/Checkbox.svelte";
@@ -12,7 +13,6 @@
   // Right-hand panel of Installed apps: details, uninstall, and the folders the app leaves behind.
   let { app }: { app: AppRow } = $props();
 
-  const Icon = $derived(app.store ? Store : AppWindow);
   const left = $derived(session.leftovers[app.id]);
   const ticks = $derived(session.leftoverTicks[app.id] ?? []);
   const ticked = $derived((left?.items ?? []).filter((l) => ticks.includes(l.id)));
@@ -21,7 +21,7 @@
 
 <div class="detail">
   <div class="head">
-    <span class="icon" class:store={app.store}><Icon size={22} /></span>
+    <AppLogo {app} size={44} />
     <div>
       <h2>{app.name}</h2>
       <p class="muted">{app.publisher || "Unknown publisher"}</p>
@@ -121,17 +121,6 @@
     align-items: center;
     gap: 12px;
   }
-  .icon {
-    width: 44px;
-    height: 44px;
-    flex: none;
-    display: grid;
-    place-items: center;
-    border-radius: 11px;
-    background: var(--pane);
-    color: var(--fg2);
-  }
-  .icon.store,
   .kind.store {
     background: var(--acc-bg);
     color: var(--acc);

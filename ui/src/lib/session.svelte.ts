@@ -32,7 +32,8 @@ export type View =
 
 export type Tone = "safe" | "review" | "danger";
 export type Show = "all" | SafetyKey;
-export type Sort = "size" | "name" | "group";
+/** "date" (newest first) is offered only where rows have a date: Installed apps. */
+export type Sort = "size" | "name" | "group" | "date";
 export type AppShow = "all" | "desktop" | "store";
 
 /** What the confirm dialog is asking about. */
@@ -92,6 +93,8 @@ class Session {
   // Installed apps. App ids stay valid for the whole session (Rust loads the list once).
   apps = $state.raw<AppRow[]>([]);
   appsLoading = $state(true);
+  /** App id -> logo (PNG data URL). Loaded in the background after the list; missing ids show a generic icon. */
+  appLogos = $state.raw<Record<number, string>>({});
   appShow = $state<AppShow>("all");
   appFocus = $state<number | null>(null);
   leftovers = $state<Record<number, Leftovers>>({});
@@ -404,6 +407,7 @@ class Session {
     });
     await api.on("scan:done", (d) => this.scanDone(d));
     await api.on("apps:changed", () => this.refreshApps());
+    await api.on("apps:logos", () => this.refreshLogos());
     await api.on("clean:progress", (p) => (this.cleaning = p));
     await api.on("clean:done", (d) => this.cleanDone(d));
     await api.on("leftovers:changed", (e) => this.leftoversChanged(e.app_id));
@@ -433,6 +437,8 @@ class Session {
       this.notify("danger", `Could not start: ${errorText(e)}`);
     }
     await this.refreshApps();
+    // Logos may have finished before this page subscribed to `apps:logos`.
+    await this.refreshLogos();
   }
 
   systemDrive(): Drive | undefined {
@@ -512,6 +518,14 @@ class Session {
       if (!(await api.relaunchAdmin())) this.notify("review", "Windows did not start Freespace as administrator.");
     } catch (e) {
       this.notify("danger", errorText(e));
+    }
+  }
+
+  private async refreshLogos() {
+    try {
+      this.appLogos = await api.appLogos();
+    } catch {
+      // Logos are decoration; the list works without them.
     }
   }
 

@@ -2,6 +2,7 @@
 mod apps;
 mod cleaner;
 mod commands;
+mod icons;
 mod rules;
 mod safety;
 mod scanner;
@@ -31,6 +32,7 @@ fn main() {
             stop_clean,
             report,
             apps,
+            app_logos,
             scan_leftovers,
             leftovers,
             plan_leftovers,

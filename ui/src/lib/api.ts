@@ -230,6 +230,8 @@ export interface UninstallDone {
 }
 
 export const apps = () => invoke<AppsList>("apps");
+/** App id -> logo as a PNG data URL, for the apps that have one. */
+export const appLogos = () => invoke<Record<number, string>>("app_logos");
 export const scanLeftovers = (appId: number) => invoke<void>("scan_leftovers", { appId });
 export const leftovers = (appId: number) => invoke<Leftovers>("leftovers", { appId });
 export const planLeftovers = (appId: number, gen: number, ids: number[]) =>
@@ -254,6 +256,7 @@ interface Events {
   "clean:progress": CleanProgress;
   "clean:done": CleanDone;
   "apps:changed": null;
+  "apps:logos": null;
   "leftovers:changed": { app_id: number };
   "uninstall:progress": UninstallProgress;
   "uninstall:done": UninstallDone;

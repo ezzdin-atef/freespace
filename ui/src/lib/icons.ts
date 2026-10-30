@@ -7,6 +7,7 @@ import ArrowRightIcon from "~icons/solar/arrow-right-bold-duotone";
 import BoxIcon from "~icons/solar/box-bold-duotone";
 import BroomIcon from "~icons/solar/broom-bold-duotone";
 import BugIcon from "~icons/solar/bug-bold-duotone";
+import CalendarIcon from "~icons/solar/calendar-bold-duotone";
 import CaretDownIcon from "~icons/solar/alt-arrow-down-bold-duotone";
 import CaretRightIcon from "~icons/solar/alt-arrow-right-bold-duotone";
 import CheckCircleIcon from "~icons/solar/check-circle-bold-duotone";
@@ -57,6 +58,7 @@ export {
   ArrowDownIcon as ArrowDown,
   ArrowRightIcon as ArrowRight,
   BroomIcon as Broom,
+  CalendarIcon as Calendar,
   CaretDownIcon as CaretDown,
   CaretRightIcon as CaretRight,
   CheckCircleIcon as CheckCircle,

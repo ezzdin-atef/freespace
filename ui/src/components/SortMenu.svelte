@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { Check, SortByGroup, SortByName, SortBySize } from "../lib/icons";
+  import { Calendar, Check, SortByGroup, SortByName, SortBySize } from "../lib/icons";
   import type { Sort } from "../lib/session.svelte";
   import Select from "./Select.svelte";
 
-  /** `groupLabel` null leaves out the third option (pages with nothing to group by). */
+  /** `groupLabel` null leaves out the group option (pages with nothing to group by); `dateLabel` adds a
+   *  newest-first option (pages whose rows have a date). */
   let {
     value,
     groupLabel = "Category",
+    dateLabel = null,
     onchange,
-  }: { value: Sort; groupLabel?: string | null; onchange: (s: Sort) => void } = $props();
+  }: { value: Sort; groupLabel?: string | null; dateLabel?: string | null; onchange: (s: Sort) => void } = $props();
 
   let open = $state(false);
   let root: HTMLDivElement;
@@ -17,6 +19,7 @@
     { key: "size" as const, icon: SortBySize, label: "Size", detail: "largest first" },
     { key: "name" as const, icon: SortByName, label: "Name", detail: "A to Z" },
     ...(groupLabel ? [{ key: "group" as const, icon: SortByGroup, label: groupLabel, detail: "" }] : []),
+    ...(dateLabel ? [{ key: "date" as const, icon: Calendar, label: dateLabel, detail: "newest first" }] : []),
   ]);
   const current = $derived(options.find((o) => o.key === value) ?? options[0]);
 

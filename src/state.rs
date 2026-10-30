@@ -81,6 +81,8 @@ pub struct Session {
     /// Loaded once at startup, so an app id (index) stays valid for the life of the process.
     pub apps: Vec<InstalledApp>,
     pub apps_loading: bool,
+    /// App id -> logo as a PNG data URL, filled in the background after the list loads.
+    pub app_logos: HashMap<usize, String>,
     pub leftovers: HashMap<usize, LeftoverSet>,
     pub leftovers_loading: HashSet<usize>,
     pub uninstall_job: Option<(usize, Arc<UninstallProgress>)>,
@@ -393,6 +395,7 @@ mod tests {
             installed: String::new(),
             location: None,
             size: 0,
+            icon: None,
             source: Source::Registry {
                 hive: crate::apps::Hive::User,
                 key: "Demo".into(),

@@ -49,6 +49,7 @@
     const label = (f: FindingRow) => session.groupByCategory.get(f.category)?.label ?? f.category;
     switch (session.sort) {
       case "size":
+      case "date":
         return rows.sort((a, b) => b.size - a.size);
       case "name":
         return rows.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: "base" }));

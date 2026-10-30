@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { AppWindow, Search, Store } from "../lib/icons";
+  import { AppWindow, Search } from "../lib/icons";
   import type { AppRow } from "../lib/api";
   import { session, type AppShow, type Sort } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
   import { handleListKeys } from "../lib/listKeys";
+  import AppLogo from "../components/AppLogo.svelte";
   import Card from "../components/Card.svelte";
   import Field from "../components/Field.svelte";
   import PageHeader from "../components/PageHeader.svelte";
@@ -16,11 +17,13 @@
   let search: Field | undefined = $state();
 
   const visible = $derived.by(() => {
-    const q = session.filter.trim().toLowerCase();
+    // Every word must match somewhere: name, publisher, version or install folder ("adobe 2024", "jetbrains").
+    const words = session.filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const haystack = (a: AppRow) => `${a.name} ${a.publisher} ${a.version} ${a.location ?? ""}`.toLowerCase();
     const rows = session.apps.filter(
       (a) =>
         (session.appShow === "all" || (session.appShow === "store") === a.store) &&
-        (!q || a.name.toLowerCase().includes(q) || a.publisher.toLowerCase().includes(q)),
+        (words.length === 0 || words.every((w) => haystack(a).includes(w))),
     );
     const byName = (a: AppRow, b: AppRow) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     switch (session.sort) {
@@ -30,6 +33,9 @@
         return rows.sort(byName);
       case "group":
         return rows.sort((a, b) => a.publisher.localeCompare(b.publisher, undefined, { sensitivity: "base" }) || byName(a, b));
+      case "date":
+        // ISO dates sort as strings; apps without a date go last.
+        return rows.sort((a, b) => (b.installed || "0").localeCompare(a.installed || "0") || byName(a, b));
     }
   });
   const total = $derived(visible.reduce((n, a) => n + a.size, 0));
@@ -45,7 +51,7 @@
     { key: "name", title: "App", width: "minmax(200px, 1fr)", sort: "name" },
     { key: "publisher", title: "Publisher", width: "minmax(100px, 220px)", sort: "group" },
     { key: "version", title: "Version", width: "130px" },
-    { key: "installed", title: "Installed", width: "110px" },
+    { key: "installed", title: "Installed", width: "110px", sort: "date" },
     { key: "size", title: "Size", width: "96px", right: true, sort: "size" },
   ];
   const tabs = $derived<{ key: AppShow; label: string; count: string }[]>([
@@ -84,13 +90,13 @@
         bind:this={search}
         bind:value={session.filter}
         icon={Search}
-        placeholder="Search apps  (Ctrl+F)"
+        placeholder="Search name, publisher, version  (Ctrl+F)"
         width={360}
         clearable
         title="Ctrl+F jumps here, Esc clears it"
       />
       <span class="tabs"><Segmented items={tabs} value={session.appShow} onchange={(s) => (session.appShow = s)} /></span>
-      <SortMenu value={session.sort} groupLabel="Publisher" onchange={(s) => (session.sort = s)} />
+      <SortMenu value={session.sort} groupLabel="Publisher" dateLabel="Installed" onchange={(s) => (session.sort = s)} />
     </div>
 
     <div class="table">
@@ -111,9 +117,8 @@
           >
             {#snippet cell(a, key)}
               {#if key === "name"}
-                {@const Icon = a.store ? Store : AppWindow}
                 <span class="name" class:gone={a.removed}>
-                  <span class="icon" class:store={a.store}><Icon size={15} /></span>
+                  <AppLogo app={a} size={24} />
                   <b>{a.name}</b>
                   {#if a.removed}<span class="pill">Uninstalled</span>{/if}
                 </span>
@@ -211,20 +216,6 @@
   }
   .gone b {
     color: var(--mut);
-  }
-  .icon {
-    width: 26px;
-    height: 26px;
-    flex: none;
-    display: grid;
-    place-items: center;
-    border-radius: 7px;
-    background: var(--pane);
-    color: var(--fg2);
-  }
-  .icon.store {
-    background: var(--acc-bg);
-    color: var(--acc);
   }
   .pill {
     flex: none;

@@ -10,7 +10,8 @@ use crate::cleaner::{self, CleanProgress, CleanReport, Maintenance};
 use crate::rules::{Category, DeleteMode, ItemKind, Safety};
 use crate::scanner::{self, Finding, Progress};
 use crate::state::{self, CleanJob, LeftoverSet, Plan, ScanJob, ScanState, Session, BUSY};
-use crate::{safety, win};
+use crate::{icons, safety, win};
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering::Relaxed;
@@ -600,7 +601,10 @@ pub fn start_apps_load<R: Runtime>(app: &AppHandle<R>) {
         for msg in rx {
             let mut s = lock_app(&app);
             match msg {
-                AppsMsg::List(list) => s.apps = list,
+                AppsMsg::List(list) => {
+                    start_logo_load(&app, list.clone());
+                    s.apps = list;
+                }
                 AppsMsg::Sizes(sizes) => {
                     for (i, size) in sizes {
                         if let Some(a) = s.apps.get_mut(i) {
@@ -615,6 +619,28 @@ pub fn start_apps_load<R: Runtime>(app: &AppHandle<R>) {
         lock_app(&app).apps_loading = false;
         let _ = app.emit("apps:changed", ());
     });
+}
+
+/// Reads every app's logo on a worker pool, then stores them and emits `apps:logos`. Logos are cosmetic,
+/// so this never holds up the list itself.
+fn start_logo_load<R: Runtime>(app: &AppHandle<R>, list: Vec<apps::InstalledApp>) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        use rayon::prelude::*;
+        let logos: HashMap<usize, String> = list
+            .par_iter()
+            .enumerate()
+            .filter_map(|(i, a)| icons::app_logo(a).map(|l| (i, l)))
+            .collect();
+        lock_app(&app).app_logos = logos;
+        let _ = app.emit("apps:logos", ());
+    });
+}
+
+/// App id -> logo (PNG data URL) for every app that has one; empty until `apps:logos` fires.
+#[tauri::command]
+pub fn app_logos(state: State<'_, Shared>) -> HashMap<usize, String> {
+    lock(&state).app_logos.clone()
 }
 
 #[derive(Serialize)]

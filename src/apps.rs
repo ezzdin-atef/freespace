@@ -41,6 +41,8 @@ pub struct InstalledApp {
     pub installed: String,
     pub location: Option<PathBuf>,
     pub size: u64,
+    /// The registry's DisplayIcon: an .exe/.dll/.ico path with an optional ",index". Store apps use their manifest.
+    pub icon: Option<String>,
     pub source: Source,
 }
 
@@ -126,6 +128,7 @@ pub fn list_registry() -> Vec<InstalledApp> {
                 installed,
                 location,
                 size: dword("EstimatedSize").map_or(0, |kb| kb as u64 * 1024),
+                icon: get("DisplayIcon"),
                 source: Source::Registry {
                     hive,
                     key: format!("{UNINSTALL}\\{key_name}"),
@@ -193,6 +196,7 @@ pub fn list_store() -> Vec<InstalledApp> {
                 installed: String::new(),
                 location: clean_path(&s(o, "InstallLocation")),
                 size: 0,
+                icon: None,
                 source: Source::Store { full_name, family: s(o, "PackageFamilyName") },
             })
         })
@@ -611,6 +615,7 @@ mod tests {
             installed: String::new(),
             location: None,
             size: 0,
+            icon: None,
             source: Source::Store { full_name: String::new(), family: String::new() },
         };
         let k = keys(&app);

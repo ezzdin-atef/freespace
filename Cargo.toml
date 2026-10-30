@@ -5,6 +5,9 @@ edition = "2021"
 description = "Fast Windows disk scanner and cleaner"
 
 [dependencies]
+# App logos: PNG-encoded and sent to the UI as data URLs.
+base64 = "0.23"
+png = "0.18"
 rayon = "1.10"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
@@ -12,7 +15,9 @@ tauri = { version = "2.12", features = [] }
 trash = "5"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
+    "Win32_Graphics_Gdi",
     "Win32_Storage_FileSystem",
+    "Win32_System_Environment",
     "Win32_System_Registry",
     "Win32_System_Threading",
     "Win32_UI_Shell",

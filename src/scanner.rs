@@ -402,18 +402,16 @@ mod tests {
 
         let prog = Arc::new(Progress::default());
         let r = start(root.clone(), prog).recv().unwrap();
-        let found: Vec<(Category, String)> = r
-            .findings
-            .iter()
-            .map(|f| (f.category, f.path.strip_prefix(&root).unwrap().display().to_string()))
-            .collect();
+        // The scan also reports this drive's real Recycle Bin. Cleaning that would empty the user's bin.
+        let items: Vec<Finding> = r.findings.iter().filter(|f| f.category != Category::RecycleBin).cloned().collect();
+        let found: Vec<(Category, String)> =
+            items.iter().map(|f| (f.category, f.path.strip_prefix(&root).unwrap().display().to_string())).collect();
         assert!(found.contains(&(Category::NodeModules, r"web\node_modules".into())), "{found:?}");
         assert!(found.contains(&(Category::BuildArtifacts, r"rs\target".into())), "{found:?}");
         assert!(found.contains(&(Category::LogFiles, r"logs\app.log".into())), "{found:?}");
         assert_eq!(found.len(), 3, "{found:?}");
         assert_eq!(r.tree.size, 10 + 1000 + 50 + 10 + 2000 + 5 + 300 * 3);
 
-        let items: Vec<Finding> = r.findings.clone();
         let cp = Arc::new(cleaner::CleanProgress::default());
         let rep = cleaner::start(items, false, Default::default(), Default::default(), cp).recv().unwrap();
         assert_eq!(rep.freed, 1000 + 2000 + 300);

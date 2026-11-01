@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AppWindow, Broom, Clipboard, File, House, Play, Shield, ShieldCheck, SpaceUsage, Sparkle, Stop } from "./lib/icons";
+  import { AppWindow, Broom, Clipboard, Code, File, House, Play, Shield, ShieldCheck, SpaceUsage, Sparkle, Stop } from "./lib/icons";
   import { session, type View } from "./lib/session.svelte";
   import { categoryIcon } from "./lib/icons";
   import { fmtCompact, fmtCount, fmtSeconds, fmtSize } from "./lib/format";
@@ -15,6 +15,7 @@
   import Report from "./pages/Report.svelte";
   import Usage from "./pages/Usage.svelte";
   import Findings from "./pages/Findings.svelte";
+  import Projects from "./pages/Projects.svelte";
   import FullClean from "./pages/FullClean.svelte";
   import Scanning from "./pages/Scanning.svelte";
 
@@ -92,6 +93,16 @@
           onclick={() => session.go({ page: "cleanable", category: g.category })}
         />
       {/each}
+      {#if session.projects.length > 0}
+        <NavSection label="Developer" />
+        <NavItem
+          icon={Code}
+          label="Projects"
+          count={fmtSize(session.projectsCleanable)}
+          active={is("projects")}
+          onclick={() => session.go({ page: "projects" })}
+        />
+      {/if}
       <NavSection label="Explore" />
       <NavItem icon={SpaceUsage} label="Space usage" active={is("usage")} onclick={() => session.go({ page: "usage" })} />
       <NavItem
@@ -132,6 +143,8 @@
       <Report />
     {:else if v.page === "usage"}
       <Usage />
+    {:else if v.page === "projects"}
+      <Projects />
     {:else}
       <Apps />
     {/if}

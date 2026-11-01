@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { AppWindow, Search } from "../lib/icons";
+  import { AppWindow, Info, Search, Undo } from "../lib/icons";
   import type { AppRow } from "../lib/api";
   import { session, type AppShow, type Sort } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
   import { handleListKeys } from "../lib/listKeys";
   import AppLogo from "../components/AppLogo.svelte";
+  import Button from "../components/Button.svelte";
   import Card from "../components/Card.svelte";
   import Field from "../components/Field.svelte";
   import PageHeader from "../components/PageHeader.svelte";
@@ -82,7 +83,7 @@
       icon={AppWindow}
       title="Installed apps"
       meta="{fmtCount(visible.length)} apps  ·  {fmtSize(total)}{session.appsLoading ? '  ·  measuring sizes...' : ''}"
-      desc="Pick an app to see its folders. Uninstall runs the app's own uninstaller; afterwards Freespace finds the files it left behind so you can delete them too."
+      desc="Pick an app to see its folders. Uninstall runs the app's own uninstaller; afterwards Freespace finds the files it left behind so you can delete them too. Reset app data makes an app start like a fresh install."
     />
 
     <div class="toolbar">
@@ -111,6 +112,10 @@
             key={(a) => a.id}
             sort={session.sort}
             onsort={(s) => (session.sort = s)}
+            checked={(a) => session.resetTicks.has(a.id)}
+            checkable={(a) => !a.removed}
+            ontoggle={(a) => session.toggleResetTick(a.id)}
+            onsetall={(rows, on) => session.setResetTicks(rows, on)}
             focused={session.appFocus}
             onfocus={(a) => session.focusApp(a.id)}
             onopen={(a) => session.focusApp(a.id)}
@@ -142,6 +147,25 @@
         {/if}
       </Card>
     </div>
+
+    {#if session.resetTicks.size > 0}
+      <div class="bar">
+        <b>{session.resetTicks.size} {session.resetTicks.size === 1 ? "app" : "apps"} ticked</b>
+        <span class="grow" title="Reset deletes their settings, sign-ins and local data. The programs stay installed.">Reset deletes their settings, sign-ins and local data. The programs stay installed.</span>
+        <Button label="Clear" variant="dark" onclick={() => session.resetTicks.clear()} />
+        <Button
+          label={session.resetPreparing ? "Finding app data..." : "Reset app data"}
+          icon={Undo}
+          variant="danger"
+          disabled={session.busy || session.resetPreparing}
+          onclick={() => session.requestReset([...session.resetTicks])}
+        />
+      </div>
+    {:else}
+      <p class="hint">
+        <Info size={14} /> Tick apps to reset several at once: their data is deleted so they start like a fresh install.
+      </p>
+    {/if}
   </section>
 
   <aside>
@@ -196,6 +220,42 @@
   .table > :global(.card) {
     flex: 1;
     min-height: 0;
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 10px 10px 18px;
+    border-radius: var(--r-card);
+    background: #0f172a;
+    color: #fff;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+  }
+  .bar b {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .bar .grow {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: #cbd5e1;
+  }
+  @container (max-width: 560px) {
+    .bar .grow {
+      visibility: hidden;
+    }
+  }
+  .hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--mut);
   }
   aside {
     overflow-y: auto;

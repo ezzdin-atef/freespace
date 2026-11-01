@@ -9,12 +9,13 @@ use crate::apps::{InstalledApp, Leftover, UninstallProgress};
 use crate::cleaner::{CleanProgress, CleanReport, Maintenance, Policy};
 use crate::rules::{Category, DeleteMode, ItemKind, Safety};
 use crate::scanner::{DirNode, Finding, Progress, ScanResult};
-use crate::safety;
+use crate::settings::Settings;
 use crate::util::fmt_size;
+use crate::{apps, safety};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub const STALE_SCAN: &str = "The scan results changed since this list was shown. Check your selection and try again.";
 pub const STALE_LEFTOVERS: &str = "The leftover list changed since it was shown. Check your selection and try again.";
@@ -88,6 +89,12 @@ pub struct Session {
     pub uninstall_job: Option<(usize, Arc<UninstallProgress>)>,
     /// Apps uninstalled (or whose entry was removed) during this session.
     pub removed: HashSet<usize>,
+
+    pub settings: Settings,
+    /// None in tests, which keep settings in memory.
+    pub settings_path: Option<PathBuf>,
+    pub has_tray: bool,
+    pub scan_finished: Option<Instant>,
 }
 
 impl Session {
@@ -103,6 +110,21 @@ impl Session {
     /// The current scan, if `scan_id` still names it.
     pub fn scan_for(&self, scan_id: u64) -> Result<&ScanState, String> {
         self.scan.as_ref().filter(|s| s.id == scan_id).ok_or_else(|| STALE_SCAN.to_string())
+    }
+
+    /// The folder the automatic rescan should scan at `now`, if it is time. The UI still decides whether to go ahead,
+    /// and is asked again a minute later if it does not.
+    pub fn rescan_due(&self, now: Instant) -> Option<&str> {
+        let every = Duration::from_secs(u64::from(self.settings.rescan_minutes) * 60);
+        let waited = self.scan_finished.is_none_or(|t| now.saturating_duration_since(t) >= every);
+        (!every.is_zero() && waited && !self.busy()).then_some(self.settings.last_root.as_deref()).flatten()
+    }
+
+    /// Saves the settings. A failure only means they are back to the old values next time.
+    pub fn save_settings(&self) {
+        if let Some(path) = &self.settings_path {
+            let _ = self.settings.save(path);
+        }
     }
 
     pub fn app(&self, app_id: usize) -> Result<&InstalledApp, String> {
@@ -123,6 +145,8 @@ pub struct Plan {
     pub blocked: Vec<(PathBuf, &'static str)>,
     pub warn: Option<String>,
     pub app: Option<usize>,
+    /// Apps whose leftover lists are rescanned once the clean is done.
+    pub refresh: Vec<usize>,
 }
 
 /// What "Full clean" selects: everything safe plus the system leftovers that only matter for rollback/debugging.
@@ -244,7 +268,58 @@ pub fn leftover_plan(session: &Session, app_id: usize, gen: u64, ids: &[usize]) 
     }
     let warn = (!session.removed.contains(&app_id) && app.has_uninstaller())
         .then(|| format!("{} is still installed. Deleting its files will break it - uninstall it first.", app.name));
-    Ok(finish_plan(items, Maintenance::default(), Policy::Uninstall, blocked, warn, Some(app_id)))
+    let mut plan = finish_plan(items, Maintenance::default(), Policy::Uninstall, blocked, warn, Some(app_id));
+    plan.refresh = vec![app_id];
+    Ok(plan)
+}
+
+/// Delete plan that resets apps to a fresh state: each `(app id, leftover generation)` loses its data folders.
+pub fn reset_plan(session: &Session, picks: &[(usize, u64)]) -> Result<Plan, String> {
+    // Freespace never resets itself while it runs.
+    let me = std::env::current_exe().ok().map(|p| safety::norm(&p));
+    let mut items = Vec::new();
+    let mut blocked = Vec::new();
+    let mut names = Vec::new();
+    let mut refresh = Vec::new();
+    for &(app_id, gen) in picks {
+        if refresh.contains(&app_id) || session.removed.contains(&app_id) {
+            continue;
+        }
+        let app = session.app(app_id)?;
+        if app.location.as_deref().zip(me.as_deref()).is_some_and(|(l, me)| safety::is_within(me, &safety::norm(l))) {
+            continue;
+        }
+        let set = session.leftovers.get(&app_id).filter(|s| s.gen == gen).ok_or_else(|| STALE_LEFTOVERS.to_string())?;
+        for t in apps::reset_targets(app, &set.items) {
+            if let Some(r) = safety::uninstall_blocked(&t.path) {
+                blocked.push((t.path, r));
+                continue;
+            }
+            items.push(Finding {
+                category: Category::AppData,
+                path: t.path,
+                size: t.size,
+                files: t.files,
+                safety: Safety::Safe,
+                note: format!("{} - {}", app.name, t.what),
+                mode: if t.contents { DeleteMode::Contents } else { DeleteMode::Whole },
+                kind: ItemKind::Dir,
+            });
+        }
+        names.push(app.name.as_str());
+        refresh.push(app_id);
+    }
+    let who = match names.as_slice() {
+        [one] => one.to_string(),
+        _ => format!("these {} apps", names.len()),
+    };
+    let warn = (!items.is_empty()).then(|| {
+        format!("Close {who} first. Their settings, sign-ins and local data are deleted, and they start like a fresh install.")
+    });
+    let app = (refresh.len() == 1).then(|| refresh[0]);
+    let mut plan = finish_plan(items, Maintenance::default(), Policy::Uninstall, blocked, warn, app);
+    plan.refresh = refresh;
+    Ok(plan)
 }
 
 fn finish_plan(
@@ -261,7 +336,7 @@ fn finish_plan(
         .filter(|f| f.safety != Safety::Safe)
         .map(|f| format!("{}  ({})  {}", f.path.display(), fmt_size(f.size), f.note))
         .collect();
-    Plan { items, maint, policy, bytes, caution, blocked, warn, app }
+    Plan { items, maint, policy, bytes, caution, blocked, warn, app, refresh: Vec::new() }
 }
 
 #[cfg(test)]
@@ -286,7 +361,7 @@ mod tests {
     fn node(path: &str, size: u64, children: Vec<DirNode>) -> DirNode {
         let p = PathBuf::from(path);
         let name = p.file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
-        DirNode { name, path: p, size, files: 1, tag: None, children }
+        DirNode { name, path: p, size, files: 1, tag: None, children, newest: std::time::UNIX_EPOCH, markers: 0 }
     }
 
     fn scan(findings: Vec<Finding>) -> ScanState {
@@ -304,6 +379,7 @@ mod tests {
                 root: PathBuf::from("D:\\"),
                 tree,
                 findings,
+                projects: Vec::new(),
                 elapsed: Duration::ZERO,
                 files: 0,
                 dirs: 0,
@@ -315,6 +391,32 @@ mod tests {
 
     fn paths(plan: &Plan) -> Vec<String> {
         plan.items.iter().map(|f| f.path.display().to_string()).collect()
+    }
+
+    #[test]
+    fn rescan_waits_for_its_interval() {
+        let mut s = Session::default();
+        let now = Instant::now();
+        s.settings.rescan_minutes = 60;
+        assert_eq!(s.rescan_due(now), None, "nothing has been scanned, so there is nothing to repeat");
+
+        s.settings.last_root = Some("D:\\code".into());
+        assert_eq!(s.rescan_due(now), Some("D:\\code"), "the first one after a restart runs right away");
+
+        s.scan_finished = Some(now);
+        assert_eq!(s.rescan_due(now + Duration::from_secs(59 * 60)), None);
+        assert_eq!(s.rescan_due(now + Duration::from_secs(60 * 60)), Some("D:\\code"));
+
+        s.settings.rescan_minutes = 0;
+        assert_eq!(s.rescan_due(now + Duration::from_secs(99 * 60)), None, "turned off");
+    }
+
+    #[test]
+    fn rescan_never_interrupts_a_job() {
+        let mut s = Session::default();
+        s.settings.last_root = Some("D:\\code".into());
+        s.clean_job = Some(CleanJob { progress: Default::default(), started: Instant::now(), app: None });
+        assert_eq!(s.rescan_due(Instant::now()), None);
     }
 
     #[test]
@@ -435,5 +537,31 @@ mod tests {
 
         s.removed.insert(0);
         assert!(leftover_plan(&s, 0, 3, &[0]).unwrap().warn.is_none());
+    }
+
+    #[test]
+    fn reset_plans_take_only_app_data() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("reset-plan-fixture");
+        let _ = std::fs::remove_dir_all(&dir);
+        let data = dir.join("Roaming").join("Demo");
+        std::fs::create_dir_all(&data).unwrap();
+        let mut s = Session::default();
+        s.apps = vec![app(true), app(true)];
+        let lo = |what: &'static str| Leftover { what, ..leftover(&data.display().to_string(), Safety::Safe) };
+        s.leftovers.insert(0, LeftoverSet { gen: 4, items: vec![lo("App data (Roaming)"), lo("Start menu")] });
+        s.leftovers.insert(1, LeftoverSet { gen: 5, items: vec![] });
+
+        assert_eq!(reset_plan(&s, &[(0, 3)]).err().as_deref(), Some(STALE_LEFTOVERS));
+        let plan = reset_plan(&s, &[(0, 4), (0, 4), (1, 5)]).unwrap();
+        assert_eq!(paths(&plan), [data.display().to_string()]);
+        assert_eq!(plan.items[0].category, Category::AppData);
+        assert_eq!(plan.refresh, [0, 1]);
+        assert_eq!(plan.app, None, "several apps: no single app to report on");
+        assert!(plan.warn.as_deref().is_some_and(|w| w.contains("these 2 apps")));
+
+        s.removed.insert(0);
+        let plan = reset_plan(&s, &[(0, 4)]).unwrap();
+        assert!(plan.items.is_empty() && plan.warn.is_none(), "uninstalled apps are not reset");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

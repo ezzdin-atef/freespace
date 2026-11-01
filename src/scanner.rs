@@ -1,5 +1,6 @@
 //! Parallel disk walk. One pass builds the space-usage tree and collects everything cleanable.
 
+use crate::projects::{self, Project, Seed};
 use crate::rules::{self, Category, DeleteMode, ItemKind, Known, Safety};
 use crate::{safety, win};
 use rayon::prelude::*;
@@ -10,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const LARGE_FILE: u64 = 512 * 1024 * 1024;
 const TREE_MIN: u64 = 1024 * 1024;
@@ -38,6 +39,10 @@ pub struct DirNode {
     /// Set when the whole folder is a cleanable finding.
     pub tag: Option<Category>,
     pub children: Vec<DirNode>,
+    /// Last edit in here, not counting cleanable folders, `.git` or nested projects.
+    pub newest: SystemTime,
+    /// Project marker files in here, with the same exclusions.
+    pub markers: u32,
 }
 
 #[derive(Default)]
@@ -54,6 +59,7 @@ pub struct ScanResult {
     pub root: PathBuf,
     pub tree: DirNode,
     pub findings: Vec<Finding>,
+    pub projects: Vec<Project>,
     pub elapsed: Duration,
     pub files: u64,
     pub dirs: u64,
@@ -82,12 +88,17 @@ struct Ctx {
     no_logs: bool,
     /// Inside a folder named log/logs.
     logs_dir: bool,
+    /// Inside a project: only a real git repository starts another one.
+    in_project: bool,
+    /// Inside a package store, where nothing starts a project.
+    no_project: bool,
 }
 
 struct Scanner<'a> {
     known: HashMap<String, &'static Known>,
     progress: &'a Progress,
     findings: Mutex<Vec<Finding>>,
+    seeds: Mutex<Vec<Seed>>,
     now: SystemTime,
 }
 
@@ -100,7 +111,7 @@ fn run(root: PathBuf, progress: &Progress) -> ScanResult {
         .filter(|(p, _)| *p != root_norm && safety::is_within(p, &root_norm))
         .collect();
 
-    let sc = Scanner { known, progress, findings: Mutex::new(Vec::new()), now: SystemTime::now() };
+    let sc = Scanner { known, progress, findings: Mutex::new(Vec::new()), seeds: Mutex::new(Vec::new()), now: SystemTime::now() };
     let protected = safety::is_protected_area(&root_norm);
     let ctx = Ctx {
         depth: 0,
@@ -109,6 +120,8 @@ fn run(root: PathBuf, progress: &Progress) -> ScanResult {
         in_finding: false,
         no_logs: false,
         logs_dir: false,
+        in_project: false,
+        no_project: false,
     };
 
     // Disk walking is I/O bound: oversubscribe the cores so the SSD queue stays full.
@@ -139,11 +152,14 @@ fn run(root: PathBuf, progress: &Progress) -> ScanResult {
         }
     }
     findings.sort_by(|a, b| a.category.cmp(&b.category).then(b.size.cmp(&a.size)));
+    // After the sort: projects refer to findings by index.
+    let projects = pool.install(|| projects::analyze(sc.seeds.into_inner().unwrap_or_default(), &mut findings, sc.now));
 
     ScanResult {
         root,
         tree,
         findings,
+        projects,
         elapsed: started.elapsed(),
         files: progress.files.load(Relaxed),
         dirs: progress.dirs.load(Relaxed),
@@ -161,6 +177,8 @@ impl Scanner<'_> {
             files: 0,
             tag: None,
             children: Vec::new(),
+            newest: UNIX_EPOCH,
+            markers: 0,
         };
         if self.progress.cancel.load(Relaxed) {
             return node;
@@ -176,6 +194,7 @@ impl Scanner<'_> {
         let mut subdirs = Vec::new();
         let mut markers = 0u32;
         let mut local = Vec::new();
+        let mut has_git = false;
         for entry in rd {
             let Ok(e) = entry else { continue };
             let Ok(ft) = e.file_type() else { continue };
@@ -184,6 +203,8 @@ impl Scanner<'_> {
                 continue;
             }
             if ft.is_dir() {
+                // Without HEAD it is an empty or broken folder, not a repository.
+                has_git |= e.file_name().eq_ignore_ascii_case(".git") && e.path().join("HEAD").is_file();
                 subdirs.push(e.path());
                 continue;
             }
@@ -195,6 +216,7 @@ impl Scanner<'_> {
             if !ctx.in_finding {
                 let name = e.file_name();
                 markers |= rules::marker_of(&name);
+                node.newest = node.newest.max(md.modified().unwrap_or(UNIX_EPOCH));
                 if let Some(f) = self.check_file(&e, &name, len, &md, &ctx) {
                     local.push(f);
                 }
@@ -212,10 +234,34 @@ impl Scanner<'_> {
             }
         }
 
-        let children: Vec<DirNode> = subdirs.into_par_iter().map(|p| self.visit(p, &ctx, markers)).collect();
+        let is_project = !ctx.in_finding
+            && ctx.dev_ok
+            && !ctx.no_project
+            && (has_git || (markers != 0 && !ctx.in_project))
+            && safety::deletion_blocked(dir).is_none();
+        let inner = Ctx { in_project: ctx.in_project || is_project, ..ctx };
+        let children: Vec<DirNode> = subdirs.into_par_iter().map(|p| self.visit(p, &inner, markers)).collect();
+        node.markers = markers;
         for c in &children {
             node.size += c.size;
             node.files += c.files;
+            if c.tag.is_none() && !c.name.eq_ignore_ascii_case(".git") {
+                node.newest = node.newest.max(c.newest);
+                node.markers |= c.markers;
+            }
+        }
+        if is_project {
+            self.seeds.lock().unwrap().push(Seed {
+                root: dir.to_path_buf(),
+                size: node.size,
+                files: node.files,
+                markers: node.markers,
+                newest: node.newest,
+                has_git,
+            });
+            // A nested project's activity and type are its own, not its parent's.
+            node.newest = UNIX_EPOCH;
+            node.markers = 0;
         }
         if !ctx.in_finding && ctx.depth < TREE_MAX_DEPTH {
             let mut children = children;
@@ -249,6 +295,13 @@ impl Scanner<'_> {
             // node_modules / target folders that the apps need: never match inside them.
             if cctx.protected || name == "appdata" || name.starts_with('.') {
                 cctx.dev_ok = false;
+            }
+            // Inside a project, worktrees are that project's own checkouts, unlike the rest of a dot-folder.
+            if ctx.in_project && !cctx.protected && rules::is_worktrees_dir(&key) {
+                cctx.dev_ok = true;
+            }
+            if rules::is_package_store(name, &key) {
+                cctx.no_project = true;
             }
             if rules::is_db_dir(name) {
                 cctx.no_logs = true;
@@ -372,6 +425,55 @@ mod tests {
         fs::remove_dir_all(&root).unwrap();
     }
 
+    #[test]
+    fn finds_projects_and_their_artifacts() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("projects-fixture");
+        let _ = fs::remove_dir_all(&root);
+        // A monorepo: one project however many packages it has.
+        write(&root.join("mono/.git/HEAD"), 5);
+        write(&root.join("mono/package.json"), 10);
+        write(&root.join("mono/package-lock.json"), 10);
+        write(&root.join("mono/packages/ui/package.json"), 10);
+        write(&root.join("mono/packages/ui/node_modules/a/index.js"), 1000);
+        write(&root.join("mono/services/api/Cargo.toml"), 10);
+        write(&root.join("mono/services/api/target/app.exe"), 2000);
+        // A repository cloned inside another project is its own project.
+        write(&root.join("mono/third_party/lib/.git/HEAD"), 5);
+        write(&root.join("mono/third_party/lib/go.mod"), 10);
+        // A broken `.git` folder does not make a project, and does not swallow the ones inside it.
+        write(&root.join("broken/.git/config"), 5);
+        write(&root.join("broken/inner/package.json"), 10);
+        // An agent's worktree belongs to the project it sits in; other dot-folders stay off-limits.
+        write(&root.join("mono/.claude/worktrees/agent-1/.git"), 5);
+        write(&root.join("mono/.claude/worktrees/agent-1/package.json"), 10);
+        write(&root.join("mono/.claude/worktrees/agent-1/node_modules/a.js"), 500);
+        write(&root.join("mono/.claude/skills/tool/package.json"), 10);
+        write(&root.join("mono/.claude/skills/tool/node_modules/b.js"), 500);
+        // No git, just a marker file.
+        write(&root.join("script/requirements.txt"), 10);
+        // Not projects: packages in a store, tool folders, folders without a marker.
+        write(&root.join("tools/node_modules/npm/package.json"), 10);
+        write(&root.join(".nvm/versions/package.json"), 10);
+        write(&root.join("photos/a.jpg"), 10);
+
+        let r = start(root.clone(), Arc::new(Progress::default())).recv().unwrap();
+        let name = |n: &str| r.projects.iter().find(|p| p.name == n).unwrap_or_else(|| panic!("{n}: {:?}", r.projects));
+        assert_eq!(r.projects.len(), 4, "{:?}", r.projects);
+        assert!(name("inner").branch.is_none());
+
+        let mono = name("mono");
+        assert_eq!(mono.kinds, ["Node.js", "Rust"], "types come from the whole project, not just the top folder");
+        assert_eq!(mono.artifacts.len(), 3, "{:?}", mono.artifacts);
+        assert!(mono.size >= 4000 && mono.size < 4100, "{} excludes the nested repository", mono.size);
+        assert!(r.findings.iter().any(|f| f.path.ends_with(r"agent-1\node_modules")));
+        assert!(!r.findings.iter().any(|f| f.path.ends_with(r"tool\node_modules")), "a skill needs its dependencies");
+        assert!(mono.branch.is_some());
+        assert_eq!(name("lib").kinds, ["Go"]);
+        assert!(name("script").branch.is_none());
+        assert!(name("script").last_active.is_some());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
     /// cargo test --release -- --ignored --nocapture scan_speed
     #[test]
     #[ignore]
@@ -397,6 +499,19 @@ mod tests {
             for f in r.findings.iter().filter(|f| f.category == c).take(4) {
                 println!("      {:>10} {:?} {}", crate::util::fmt_size(f.size), f.safety, f.path.display());
             }
+        }
+        println!("{} projects", r.projects.len());
+        for p in &r.projects {
+            let cleanable: u64 = p.artifacts.iter().map(|a| r.findings[a.finding].size).sum();
+            println!(
+                "{:>10} {:>10} dormant={:<5} {:?} {:?} {}",
+                crate::util::fmt_size(p.size),
+                crate::util::fmt_size(cleanable),
+                p.dormant,
+                p.kinds,
+                p.branch,
+                p.root.display()
+            );
         }
     }
 }

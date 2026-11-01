@@ -72,6 +72,19 @@
         <p>DISM /StartComponentCleanup removes superseded update files from WinSxS. Takes 5-15 minutes.</p>
       </div>
     </div>
+    {#if session.dism}
+      <div class="option sub">
+        <Checkbox
+          checked={session.dismResetBase}
+          label="Also remove update backups"
+          onchange={() => (session.dismResetBase = !session.dismResetBase)}
+        />
+        <div>
+          <b>Also remove update backups</b>
+          <p>Adds /ResetBase: frees more space, but updates already installed can no longer be uninstalled.</p>
+        </div>
+      </div>
+    {/if}
     <div class="option" class:off={!session.isAdmin}>
       <Checkbox
         checked={session.hibernateOff}
@@ -175,6 +188,9 @@
   .option p {
     font-size: 13px;
     color: var(--mut);
+  }
+  .option.sub {
+    padding-left: 30px;
   }
   .option.off b {
     color: var(--mut);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FolderOpen, ListRemove, Rescan, Trash } from "../lib/icons";
+  import { FolderOpen, ListRemove, Rescan, Trash, Undo } from "../lib/icons";
   import type { AppRow } from "../lib/api";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
@@ -62,6 +62,16 @@
         disabled={app.removed}
         title="Its uninstaller is missing. Removes the app from Windows' installed list."
         onclick={() => session.askRemoveEntry(app.id)}
+      />
+    {/if}
+    {#if !app.removed}
+      <Button
+        label="Reset app data"
+        icon={Undo}
+        wide
+        disabled={session.busy || session.resetPreparing}
+        title="Deletes the app's settings, sign-ins and local data so it starts like a fresh install. The program stays installed."
+        onclick={() => session.requestReset([app.id])}
       />
     {/if}
     {#if app.location}

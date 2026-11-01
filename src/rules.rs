@@ -26,6 +26,8 @@ pub enum Category {
     LargeFiles,
     Custom,
     AppLeftovers,
+    AppUpdates,
+    AppData,
 }
 
 impl Category {
@@ -51,6 +53,8 @@ impl Category {
             LargeFiles => "Large files",
             Custom => "Folders you picked",
             AppLeftovers => "App leftovers",
+            AppUpdates => "App update leftovers",
+            AppData => "App data",
         }
     }
 
@@ -76,6 +80,8 @@ impl Category {
             LargeFiles => "Files of 512 MB or more. These are usually your own data - review each one.",
             Custom => "Folders you selected in Space usage.",
             AppLeftovers => "Folders and shortcuts an app left behind after uninstalling.",
+            AppUpdates => "Older app versions kept after an update, downloaded update installers and extracted driver packages. Apps keep running on their current version.",
+            AppData => "An app's settings, sign-ins and local data. The app starts like a fresh install.",
         }
     }
 
@@ -91,7 +97,9 @@ impl Category {
             WindowsUpdate => "Windows downloads it again if it still needs it.",
             RecycleBin | UserTemp | SystemTemp | CrashDumps | LogFiles | WindowsLogs => "Not needed - nothing to restore.",
             OldWindows => "Cannot be restored - rolling back to the previous Windows is no longer possible.",
+            AppUpdates => "Not needed - apps download the next update when they need one.",
             LargeFiles | Custom | AppLeftovers => "Only from your own backup (or the Recycle Bin option).",
+            AppData => "Sign in and set the app up again, or restore it from the Recycle Bin option.",
         }
     }
 }
@@ -153,6 +161,9 @@ pub const KNOWN: &[Known] = &[
     whole("%SYSTEMDRIVE%\\Windows.old", OldWindows, Caution, "Previous Windows - removes rollback. If deletion fails, use Settings > System > Storage > Temporary files."),
     whole("%SYSTEMDRIVE%\\$WINDOWS.~BT", OldWindows, Caution, "Windows upgrade leftovers"),
     whole("%SYSTEMDRIVE%\\$Windows.~WS", OldWindows, Caution, "Windows upgrade leftovers"),
+    whole("%SYSTEMDRIVE%\\$GetCurrent", OldWindows, Caution, "Windows upgrade download leftovers"),
+    whole("%SYSTEMDRIVE%\\Windows10Upgrade", OldWindows, Caution, "Windows Update Assistant files"),
+    whole("%SYSTEMDRIVE%\\ESD", WindowsUpdate, Caution, "Windows setup files downloaded for an upgrade"),
     k("~\\AppData\\Local\\Microsoft\\Windows\\INetCache", BrowserCache, Safe, "Internet Explorer / WebView cache"),
     k("~\\AppData\\Local\\Microsoft\\Windows\\Explorer", ThumbnailCache, Safe, "Thumbnail and icon cache"),
     // Browsers
@@ -185,6 +196,12 @@ pub const KNOWN: &[Known] = &[
     k("~\\AppData\\Roaming\\Microsoft\\Teams\\Cache", AppCache, Safe, "Teams (classic) cache"),
     k("~\\AppData\\Local\\Spotify\\Data", AppCache, Safe, "Spotify streaming cache"),
     k("~\\AppData\\Local\\JetBrains\\*\\caches", AppCache, Safe, "JetBrains IDE caches (re-indexes on next start)"),
+    // App updates
+    k("~\\AppData\\Local\\*-updater", AppUpdates, Safe, "Downloaded app update installers"),
+    k("~\\AppData\\Local\\SquirrelTemp", AppUpdates, Safe, "App installer temp files"),
+    k("%PROGRAMDATA%\\NVIDIA Corporation\\Downloader", AppUpdates, Safe, "Downloaded NVIDIA driver installers"),
+    whole("%SYSTEMDRIVE%\\NVIDIA", AppUpdates, Safe, "Extracted NVIDIA driver installers"),
+    whole("%SYSTEMDRIVE%\\AMD", AppUpdates, Safe, "Extracted AMD driver installers"),
     // GPU
     k("~\\AppData\\Local\\D3DSCache", GpuCache, Safe, "DirectX shader cache"),
     k("~\\AppData\\Local\\NVIDIA\\DXCache", GpuCache, Safe, "NVIDIA DirectX shader cache"),
@@ -265,6 +282,33 @@ fn glob(pattern: &str) -> Vec<PathBuf> {
     cur
 }
 
+/// Older `app-<version>` folders of self-updating (Squirrel) apps such as Discord, Slack or GitHub Desktop.
+static SQUIRREL_OLD: Known =
+    whole("~\\AppData\\Local\\*\\app-*", AppUpdates, Safe, "Older app version kept after an update");
+
+/// "app-1.0.9174" -> [1, 0, 9174]; None when the folder is not a Squirrel version folder.
+fn squirrel_version(name: &str) -> Option<Vec<u64>> {
+    let v = name.get(..4).filter(|p| p.eq_ignore_ascii_case("app-")).map(|_| &name[4..])?;
+    let parts: Vec<u64> = v.split(['.', '-']).map_while(|p| p.parse().ok()).collect();
+    (!parts.is_empty()).then_some(parts)
+}
+
+/// Every `app-*` folder of `dir` except the newest, when `dir` is a Squirrel install (has Update.exe).
+pub fn squirrel_old_versions(dir: &Path) -> Vec<PathBuf> {
+    if !dir.join("Update.exe").is_file() {
+        return Vec::new();
+    }
+    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut versions: Vec<(Vec<u64>, PathBuf)> = rd
+        .flatten()
+        .filter(|e| e.file_type().map_or(false, |t| t.is_dir()))
+        .filter_map(|e| squirrel_version(&e.file_name().to_string_lossy()).map(|v| (v, e.path())))
+        .collect();
+    versions.sort();
+    versions.pop();
+    versions.into_iter().map(|(_, p)| p).collect()
+}
+
 /// Resolves every known location to the concrete folders that exist on this PC.
 pub fn expand_known() -> Vec<(PathBuf, &'static Known)> {
     let profiles = user_profiles();
@@ -283,6 +327,16 @@ pub fn expand_known() -> Vec<(PathBuf, &'static Known)> {
             }
         }
     }
+    for profile in &profiles {
+        let Ok(rd) = std::fs::read_dir(profile.join("AppData\\Local")) else { continue };
+        for e in rd.flatten().filter(|e| e.file_type().map_or(false, |t| t.is_dir())) {
+            for p in squirrel_old_versions(&e.path()) {
+                if seen.insert(safety::norm(&p)) {
+                    out.push((p, &SQUIRREL_OLD));
+                }
+            }
+        }
+    }
     out
 }
 
@@ -294,6 +348,13 @@ pub const GRADLE: u32 = 8;
 pub const PUBSPEC: u32 = 16;
 pub const CMAKE: u32 = 32;
 pub const POM: u32 = 64;
+pub const PYTHON: u32 = 128;
+pub const GO: u32 = 256;
+pub const PHP: u32 = 512;
+pub const RUBY: u32 = 1024;
+pub const SOLUTION: u32 = 2048;
+/// A `.git` file: a linked worktree, or a submodule when inside another repository.
+pub const GIT_LINK: u32 = 4096;
 
 pub fn marker_of(name: &OsStr) -> u32 {
     let Some(n) = name.to_str() else { return 0 };
@@ -312,9 +373,50 @@ pub fn marker_of(name: &OsStr) -> u32 {
         CMAKE
     } else if is("pom.xml") {
         POM
+    } else if is("pyproject.toml") || is("requirements.txt") || is("setup.py") || is("Pipfile") {
+        PYTHON
+    } else if is("go.mod") {
+        GO
+    } else if is("composer.json") {
+        PHP
+    } else if is("Gemfile") {
+        RUBY
+    } else if ends_with_ci(n, ".sln") {
+        SOLUTION
+    } else if is(".git") {
+        GIT_LINK
     } else {
         0
     }
+}
+
+/// Display names of the project types in `m`, for the Projects page.
+pub fn project_kinds(m: u32) -> Vec<&'static str> {
+    const KINDS: &[(u32, &str)] = &[
+        (PKG_JSON, "Node.js"),
+        (CARGO, "Rust"),
+        (DOTNET | SOLUTION, ".NET"),
+        (GRADLE, "Gradle"),
+        (POM, "Maven"),
+        (PUBSPEC, "Flutter"),
+        (CMAKE, "C/C++"),
+        (PYTHON, "Python"),
+        (GO, "Go"),
+        (PHP, "PHP"),
+        (RUBY, "Ruby"),
+    ];
+    KINDS.iter().filter(|(bit, _)| m & bit != 0).map(|(_, k)| *k).collect()
+}
+
+/// Folders where tools unpack other people's packages: what is inside them is not one of your projects.
+pub fn is_package_store(name_lower: &str, path_lower: &str) -> bool {
+    matches!(name_lower, "node_modules" | "bower_components" | "site-packages" | "vendor" | "scoop")
+        || path_lower.ends_with(r"\go\pkg")
+}
+
+/// Git worktrees kept inside a project by coding agents and editors: full checkouts, each with its own dependencies.
+pub fn is_worktrees_dir(path_lower: &str) -> bool {
+    path_lower.ends_with(r"\.worktrees") || path_lower.ends_with(r"\.claude\worktrees") || path_lower.ends_with(r"\.cursor\worktrees")
 }
 
 /// Matches regenerable dev folders. `name` is lowercase, `m` holds the parent's markers.
@@ -326,12 +428,23 @@ pub fn match_dev(name: &str, m: u32, path: &Path) -> Option<(Category, Safety, &
         "target" if has(POM) => (BuildArtifacts, Safe, "Maven build output - rebuilt by mvn package"),
         "bin" | "obj" if has(DOTNET) => (BuildArtifacts, Safe, ".NET build output - rebuilt by dotnet build"),
         "build" if has(GRADLE | PUBSPEC | CMAKE) => (BuildArtifacts, Safe, "Build output - rebuilt on next build"),
+        "build" | "dist" if has(PYTHON) => (BuildArtifacts, Caution, "Python package build - may be a release you want to keep"),
+        "htmlcov" if has(PYTHON) => (BuildArtifacts, Safe, "Test coverage report - recreated by the next test run"),
+        "coverage" if has(PKG_JSON) => (BuildArtifacts, Caution, "Test coverage report - check it is not a source folder"),
+        "vendor" if has(PHP) => (BuildArtifacts, Safe, "PHP dependencies - restored by composer install"),
+        "vendor" if has(GO) => (BuildArtifacts, Caution, "Go vendored modules - restored by go mod vendor"),
+        ".vs" if has(DOTNET | SOLUTION) => (BuildArtifacts, Safe, "Visual Studio cache - recreated on next open"),
         "build" | "dist" | "out" if has(PKG_JSON) => {
             (BuildArtifacts, Caution, "JS build output - may be a release you want to keep")
         }
+        ".pnpm-store" if has(PKG_JSON) => (BuildArtifacts, Safe, "Project pnpm store - packages download again on the next install"),
+        "playwright-report" | "test-results" if has(PKG_JSON) => {
+            (BuildArtifacts, Safe, "Test run output - recreated by the next run")
+        }
         ".gradle" if has(GRADLE) => (BuildArtifacts, Safe, "Gradle project cache"),
         ".dart_tool" if has(PUBSPEC) => (BuildArtifacts, Safe, "Dart / Flutter tool cache"),
-        ".next" | ".nuxt" | ".turbo" | ".parcel-cache" | ".svelte-kit" | ".angular" | ".vite" | ".cache"
+        ".next" | ".nuxt" | ".turbo" | ".parcel-cache" | ".svelte-kit" | ".angular" | ".vite" | ".cache" | ".expo"
+        | ".output" | ".astro" | ".docusaurus"
             if has(PKG_JSON) =>
         {
             (BuildArtifacts, Safe, "JS framework cache - rebuilt on next dev / build")
@@ -343,6 +456,7 @@ pub fn match_dev(name: &str, m: u32, path: &Path) -> Option<(Category, Safety, &
             (PythonEnv, Caution, "Virtual env - recreate it and reinstall packages")
         }
         ".terraform" => (BuildArtifacts, Caution, "Terraform providers - restored by terraform init"),
+        _ if name.starts_with(".next-") && has(PKG_JSON) => (BuildArtifacts, Safe, "Next.js build - rebuilt on next dev / build"),
         _ if name.starts_with("cmake-build-") => (BuildArtifacts, Safe, "CMake / CLion build output"),
         _ => return None,
     };
@@ -416,9 +530,41 @@ mod tests {
     }
 
     #[test]
+    fn squirrel_keeps_newest_version() {
+        assert_eq!(squirrel_version("app-1.0.9174"), Some(vec![1, 0, 9174]));
+        assert_eq!(squirrel_version("App-4.41.105"), Some(vec![4, 41, 105]));
+        assert_eq!(squirrel_version("app-x"), None);
+        assert_eq!(squirrel_version("packages"), None);
+
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("squirrel-fixture");
+        let _ = std::fs::remove_dir_all(&dir);
+        for d in ["app-1.0.9", "app-1.0.10", "app-0.9.99", "packages"] {
+            std::fs::create_dir_all(dir.join(d)).unwrap();
+        }
+        assert!(squirrel_old_versions(&dir).is_empty(), "not a Squirrel app without Update.exe");
+        std::fs::write(dir.join("Update.exe"), b"").unwrap();
+        let mut old: Vec<String> =
+            squirrel_old_versions(&dir).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        old.sort();
+        assert_eq!(old, ["app-0.9.99", "app-1.0.9"], "app-1.0.10 is the newest and stays");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn markers() {
         assert_eq!(marker_of(OsStr::new("Package.JSON")), PKG_JSON);
         assert_eq!(marker_of(OsStr::new("App.csproj")), DOTNET);
         assert_eq!(marker_of(OsStr::new("readme.md")), 0);
+        assert_eq!(marker_of(OsStr::new("App.sln")), SOLUTION);
+        assert_eq!(project_kinds(CARGO | PKG_JSON), ["Node.js", "Rust"]);
+        assert_eq!(project_kinds(DOTNET | SOLUTION), [".NET"], "one name for both markers");
+        assert!(project_kinds(GIT_LINK).is_empty());
+    }
+
+    #[test]
+    fn package_stores_are_not_projects() {
+        assert!(is_package_store("node_modules", "d:\\a\\node_modules"));
+        assert!(is_package_store("pkg", "c:\\users\\bob\\go\\pkg"));
+        assert!(!is_package_store("pkg", "d:\\a\\pkg"));
     }
 }

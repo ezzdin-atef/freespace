@@ -451,6 +451,54 @@ pub fn find_leftovers(app: &InstalledApp, all: &[InstalledApp]) -> Vec<Leftover>
     out
 }
 
+// ------------------------------------------------------------------ reset
+
+/// Leftover kinds that hold an app's data rather than the program itself.
+const DATA_KINDS: &[&str] = &["App data", "App data (Roaming)", "App data (Local)", "App data (LocalLow)"];
+
+/// Folders of a Store app's package data that Windows' own "Reset" empties.
+const STORE_DATA: &[&str] = &["LocalState", "RoamingState", "LocalCache", "TempState", "Settings"];
+
+pub struct ResetTarget {
+    pub path: PathBuf,
+    /// Store data folders are emptied (Windows expects them to exist); desktop data folders go entirely.
+    pub contents: bool,
+    pub size: u64,
+    pub files: u64,
+    pub what: &'static str,
+}
+
+/// True when `dir` directly holds an .exe: then it is (part of) the program, not its data.
+fn holds_program(dir: &Path) -> bool {
+    fs::read_dir(dir).into_iter().flatten().flatten().any(|e| {
+        e.file_type().is_ok_and(|t| t.is_file()) && e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("exe"))
+    })
+}
+
+/// What resetting `app` deletes, picked from its leftover list: only data folders whose name fully matches
+/// the app (Safe). The install folder, and any folder holding the program itself, never count as data.
+pub fn reset_targets(app: &InstalledApp, leftovers: &[Leftover]) -> Vec<ResetTarget> {
+    let data = leftovers.iter().filter(|l| l.safety == Safety::Safe && DATA_KINDS.contains(&l.what) && l.path.is_dir());
+    if app.is_store() {
+        return data
+            .flat_map(|l| STORE_DATA.iter().map(|d| l.path.join(d)))
+            .filter(|p| p.is_dir())
+            .map(|path| {
+                let (size, files) = dir_size(&path);
+                ResetTarget { path, contents: true, size, files, what: "App data" }
+            })
+            .collect();
+    }
+    let install = app.location.as_deref().map(safety::norm);
+    data.filter(|l| {
+        let key = safety::norm(&l.path);
+        !install.as_deref().is_some_and(|i| safety::is_within(&key, i) || safety::is_within(i, &key))
+    })
+    .filter(|l| !holds_program(&l.path))
+    .map(|l| ResetTarget { path: l.path.clone(), contents: false, size: l.size, files: l.files, what: l.what })
+    .collect()
+}
+
 pub fn start_leftovers(app: InstalledApp, all: Vec<InstalledApp>) -> Receiver<Vec<Leftover>> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
@@ -625,6 +673,57 @@ mod tests {
         let vc = InstalledApp { name: "Microsoft Visual C++ 2015 Redistributable".into(), publisher: "Microsoft Corporation".into(), ..app };
         let k = keys(&vc);
         assert!(!k.weak.contains("visual") && !k.weak.contains("redistributable"));
+    }
+
+    #[test]
+    fn reset_keeps_the_program() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("reset-fixture");
+        let _ = fs::remove_dir_all(&root);
+        let mk = |rel: &str| {
+            let p = root.join(rel);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, b"x").unwrap();
+            p.parent().unwrap().to_path_buf()
+        };
+        let roaming = mk("Roaming/Demo/settings.json");
+        let local_prog = mk("Local/Demo/Update.exe");
+        let install = mk("Programs/Demo/demo.exe");
+        let partial = mk("Local/DemoTools/cache.bin");
+        let shortcut = mk("Start/Demo/x.lnk");
+        let lo = |path: &Path, what: &'static str, safety: Safety| Leftover {
+            path: path.to_path_buf(), what, size: 1, files: 1, safety, note: "", selected: true,
+        };
+        let leftovers = vec![
+            lo(&roaming, "App data (Roaming)", Safety::Safe),
+            lo(&local_prog, "App data (Local)", Safety::Safe),
+            lo(&install, "App data (Local)", Safety::Safe),
+            lo(&partial, "App data (Local)", Safety::Caution),
+            lo(&shortcut, "Start menu", Safety::Safe),
+        ];
+        let app = InstalledApp {
+            name: "Demo".into(),
+            publisher: String::new(),
+            version: String::new(),
+            installed: String::new(),
+            location: Some(install.clone()),
+            size: 0,
+            icon: None,
+            source: Source::Registry { hive: Hive::User, key: String::new(), uninstall: None, msi: None },
+        };
+        let picked: Vec<PathBuf> = reset_targets(&app, &leftovers).into_iter().map(|t| t.path).collect();
+        assert_eq!(picked, [roaming], "only the fully matching data folder without an .exe");
+
+        let pkg = root.join("Packages/Demo_123");
+        fs::create_dir_all(pkg.join("LocalState")).unwrap();
+        fs::create_dir_all(pkg.join("AC")).unwrap();
+        let store = InstalledApp {
+            location: None,
+            source: Source::Store { full_name: String::new(), family: "Demo_123".into() },
+            ..app
+        };
+        let t = reset_targets(&store, &[lo(&pkg, "App data", Safety::Safe)]);
+        assert_eq!(t.iter().map(|t| (t.path.clone(), t.contents)).collect::<Vec<_>>(), [(pkg.join("LocalState"), true)]);
+        fs::remove_dir_all(&root).unwrap();
     }
 
     /// cargo test --release -- --ignored --nocapture list_apps

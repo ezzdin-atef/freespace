@@ -28,6 +28,18 @@ export function fmtSeconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+/** "today", "3 days ago", "11 months ago" for a time in seconds since 1970; `now` is for tests. */
+export function fmtAgo(secs: number | null, now = Date.now() / 1000): string {
+  if (secs === null) return "Unknown";
+  const days = Math.floor((now - secs) / 86400);
+  const ago = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+  if (days < 1) return "today";
+  if (days < 14) return ago(days, "day");
+  if (days < 60) return ago(Math.floor(days / 7), "week");
+  if (days < 730) return ago(Math.floor(days / 30.44), "month");
+  return ago(Math.floor(days / 365.25), "year");
+}
+
 /** "C:\" -> "C:", folders unchanged. */
 export function driveLabel(root: string): string {
   return root.replace(/\\$/, "");

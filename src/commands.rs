@@ -9,8 +9,10 @@ use crate::apps::{self, AppsMsg};
 use crate::cleaner::{self, CleanProgress, CleanReport, Maintenance};
 use crate::rules::{Category, DeleteMode, ItemKind, Safety};
 use crate::scanner::{self, Finding, Progress};
+use crate::settings::{self, Settings};
 use crate::state::{self, CleanJob, LeftoverSet, Plan, ScanJob, ScanState, Session, BUSY};
-use crate::{icons, safety, win};
+use crate::util::fmt_size;
+use crate::{icons, safety, tray, win};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -30,7 +32,7 @@ fn lock(m: &Shared) -> MutexGuard<'_, Session> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn lock_app<R: Runtime>(app: &AppHandle<R>) -> MutexGuard<'_, Session> {
+pub fn lock_app<R: Runtime>(app: &AppHandle<R>) -> MutexGuard<'_, Session> {
     lock(app.state::<Shared>().inner())
 }
 
@@ -119,10 +121,15 @@ pub struct Init {
     pub open_apps: bool,
 }
 
+/// The first command-line argument, not counting the marker of a relaunch.
+fn start_arg() -> Option<String> {
+    std::env::args().skip(1).find(|a| a != win::RELAUNCHED).filter(|a| !a.trim().is_empty())
+}
+
 /// Everything the UI needs on first paint.
 #[tauri::command]
 pub fn init() -> Init {
-    let arg = std::env::args().nth(1).filter(|a| !a.trim().is_empty());
+    let arg = start_arg();
     let open_apps = arg.as_deref() == Some("--apps");
     Init {
         drives: drives(),
@@ -239,6 +246,9 @@ pub fn start_scan<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, root:
         return Err(BUSY.into());
     }
     let root = path_str(&path);
+    s.settings.last_root = Some(root.clone());
+    s.save_settings();
+    tray::set_tooltip(&app, "Freespace - scanning...");
     let expected = win::drives()
         .into_iter()
         .find(|d| d.root.eq_ignore_ascii_case(&root))
@@ -262,10 +272,64 @@ pub fn start_scan<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, root:
             s.scan = Some(st);
             sum
         });
+        s.scan_finished = Some(Instant::now());
+        update_tooltip(app, &s);
         drop(s);
         let _ = app.emit("scan:done", ScanDone { scan_id: id, summary });
     });
     Ok(id)
+}
+
+/// Shows what can be freed on the tray icon, the same total the sidebar shows.
+fn update_tooltip<R: Runtime>(app: &AppHandle<R>, s: &Session) {
+    let Some(scan) = &s.scan else { return };
+    let bytes: u64 = scan.live().filter(|(_, f)| f.category != Category::LargeFiles).map(|(_, f)| f.size).sum();
+    tray::set_tooltip(app, &format!("Freespace - {} can be cleaned", fmt_size(bytes)));
+}
+
+/// Reads the saved settings; returns whether to start hidden in the tray. Before the first scan the window always
+/// opens, since a first launch that shows nothing looks broken and there is nothing to report yet.
+pub fn load_settings<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let path = app.path().app_config_dir().ok().map(|d| d.join("settings.json"));
+    let loaded = path.as_deref().map(Settings::load).unwrap_or_default();
+    let hidden = loaded.start_in_tray && loaded.last_root.is_some() && start_arg().is_none();
+    let mut s = lock_app(app);
+    s.settings = loaded;
+    s.settings_path = path;
+    hidden
+}
+
+/// Checks once a minute whether the automatic rescan is due. Event: `rescan:due`.
+pub fn start_rescan_timer<R: Runtime>(app: &AppHandle<R>) {
+    let app = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(60));
+        let root = lock_app(&app).rescan_due(Instant::now()).map(str::to_string);
+        // A folder on a drive that is not plugged in right now stays the target, for when it is back.
+        if let Some(root) = root.filter(|r| normalize_root(r).is_ok()) {
+            let _ = app.emit("rescan:due", RescanDue { root });
+        }
+    });
+}
+
+#[derive(Serialize, Clone)]
+pub struct RescanDue {
+    pub root: String,
+}
+
+#[tauri::command]
+pub fn get_settings(state: State<'_, Shared>) -> Settings {
+    lock(&state).settings.clone()
+}
+
+/// Changes the preferences the UI offers. The rescan target only ever comes from an actual scan.
+#[tauri::command]
+pub fn set_settings(state: State<'_, Shared>, start_in_tray: bool, rescan_minutes: u32) -> Settings {
+    let mut s = lock(&state);
+    s.settings.start_in_tray = start_in_tray;
+    s.settings.rescan_minutes = settings::clamp_minutes(rescan_minutes);
+    s.save_settings();
+    s.settings.clone()
 }
 
 #[tauri::command]
@@ -366,6 +430,89 @@ pub fn full_clean_ids(state: State<'_, Shared>, scan_id: u64) -> Res<Vec<usize>>
 }
 
 #[derive(Serialize)]
+pub struct ArtifactRow {
+    /// A finding id: tick and clean it like any other finding.
+    pub id: usize,
+    pub path: String,
+    /// Path inside the project.
+    pub rel: String,
+    pub label: &'static str,
+    pub size: u64,
+    pub files: u64,
+    pub safety: &'static str,
+    pub note: String,
+    pub restore: String,
+}
+
+#[derive(Serialize)]
+pub struct ProjectRow {
+    pub id: usize,
+    pub name: String,
+    pub path: String,
+    pub kinds: Vec<&'static str>,
+    pub size: u64,
+    pub files: u64,
+    /// Total size of `artifacts`.
+    pub cleanable: u64,
+    /// Seconds since 1970.
+    pub last_active: Option<u64>,
+    pub dormant: bool,
+    pub branch: Option<String>,
+    pub artifacts: Vec<ArtifactRow>,
+}
+
+/// Every project in the scan with the artifacts not cleaned yet.
+#[tauri::command]
+pub fn projects(state: State<'_, Shared>, scan_id: u64) -> Res<Vec<ProjectRow>> {
+    let s = lock(&state);
+    let scan = s.scan_for(scan_id)?;
+    Ok(scan
+        .result
+        .projects
+        .iter()
+        .enumerate()
+        .map(|(id, p)| {
+            let mut artifacts: Vec<ArtifactRow> = p
+                .artifacts
+                .iter()
+                .filter(|a| !scan.cleaned[a.finding])
+                .map(|a| {
+                    let f = &scan.result.findings[a.finding];
+                    ArtifactRow {
+                        id: a.finding,
+                        path: path_str(&f.path),
+                        rel: f.path.strip_prefix(&p.root).map_or_else(|_| path_str(&f.path), path_str),
+                        label: f.category.label(),
+                        size: f.size,
+                        files: f.files,
+                        safety: safety_key(f.safety),
+                        note: f.note.clone(),
+                        restore: a.restore.clone(),
+                    }
+                })
+                .collect();
+            artifacts.sort_by(|a, b| b.size.cmp(&a.size));
+            // Whatever was cleaned is gone from the project too.
+            let cleaned = p.artifacts.iter().filter(|a| scan.cleaned[a.finding]).map(|a| &scan.result.findings[a.finding]);
+            let (bytes, count) = cleaned.fold((0, 0), |(b, n), f| (b + f.size, n + f.files));
+            ProjectRow {
+                id,
+                name: p.name.clone(),
+                path: path_str(&p.root),
+                kinds: p.kinds.clone(),
+                size: p.size.saturating_sub(bytes),
+                files: p.files.saturating_sub(count),
+                cleanable: artifacts.iter().map(|a| a.size).sum(),
+                last_active: p.last_active,
+                dormant: p.dormant,
+                branch: p.branch.clone(),
+                artifacts,
+            }
+        })
+        .collect())
+}
+
+#[derive(Serialize)]
 pub struct UsageRow {
     pub name: String,
     pub path: String,
@@ -428,6 +575,9 @@ pub struct CleanRequest {
     pub folders: Vec<String>,
     #[serde(default)]
     pub dism: bool,
+    /// Only used together with `dism`.
+    #[serde(default)]
+    pub dism_reset_base: bool,
     #[serde(default)]
     pub hibernate_off: bool,
     #[serde(default)]
@@ -442,6 +592,7 @@ pub struct PlanDto {
     pub blocked: Vec<PathReason>,
     pub warn: Option<String>,
     pub dism: bool,
+    pub dism_reset_base: bool,
     pub hibernate_off: bool,
 }
 
@@ -453,6 +604,7 @@ fn plan_dto(p: &Plan) -> PlanDto {
         blocked: p.blocked.iter().map(|(path, r)| PathReason { path: path_str(path), reason: r.to_string() }).collect(),
         warn: p.warn.clone(),
         dism: p.maint.dism,
+        dism_reset_base: p.maint.reset_base,
         hibernate_off: p.maint.hibernate_off,
     }
 }
@@ -460,7 +612,7 @@ fn plan_dto(p: &Plan) -> PlanDto {
 fn request_plan(s: &Session, req: &CleanRequest) -> Res<Plan> {
     let scan = s.scan_for(req.scan_id)?;
     let folders: Vec<PathBuf> = req.folders.iter().map(PathBuf::from).collect();
-    let maint = Maintenance { dism: req.dism, hibernate_off: req.hibernate_off };
+    let maint = Maintenance { dism: req.dism, reset_base: req.dism && req.dism_reset_base, hibernate_off: req.hibernate_off };
     state::clean_plan(scan, &req.ids, &folders, maint)
 }
 
@@ -543,6 +695,7 @@ fn start_clean<R: Runtime>(app: AppHandle<R>, s: &mut Session, plan: Plan, use_t
     let progress = Arc::new(CleanProgress::default());
     let started = Instant::now();
     let app_id = plan.app;
+    let refresh = plan.refresh;
     let scan_id = s.scan.as_ref().map(|sc| sc.id);
     let rx = cleaner::start(plan.items, use_trash, plan.maint, plan.policy, progress.clone());
     s.clean_job = Some(CleanJob { progress: progress.clone(), started, app: app_id });
@@ -560,7 +713,8 @@ fn start_clean<R: Runtime>(app: AppHandle<R>, s: &mut Session, plan: Plan, use_t
             s.report = Some(r);
             dto
         });
-        if let Some(i) = app_id {
+        update_tooltip(app, &s);
+        for i in refresh {
             request_leftovers(app, &mut s, i);
         }
         drop(s);
@@ -787,6 +941,31 @@ pub fn delete_leftovers<R: Runtime>(
     start_clean(app, &mut s, plan, use_trash)
 }
 
+/// An app to reset, with the generation of the leftover list its data folders come from.
+#[derive(Deserialize)]
+pub struct ResetPick {
+    pub app_id: usize,
+    pub gen: u64,
+}
+
+fn reset_picks(picks: &[ResetPick]) -> Vec<(usize, u64)> {
+    picks.iter().map(|p| (p.app_id, p.gen)).collect()
+}
+
+/// What resetting these apps to a fresh state would delete, for the confirm dialog.
+#[tauri::command]
+pub fn plan_reset(state: State<'_, Shared>, picks: Vec<ResetPick>) -> Res<PlanDto> {
+    Ok(plan_dto(&state::reset_plan(&lock(&state), &reset_picks(&picks))?))
+}
+
+/// Deletes the apps' data folders. Events: `clean:progress`, `clean:done`, then `leftovers:changed` per app.
+#[tauri::command]
+pub fn reset_apps<R: Runtime>(app: AppHandle<R>, state: State<'_, Shared>, picks: Vec<ResetPick>, use_trash: bool) -> Res<()> {
+    let mut s = lock(&state);
+    let plan = state::reset_plan(&s, &reset_picks(&picks))?;
+    start_clean(app, &mut s, plan, use_trash)
+}
+
 #[derive(Serialize, Clone)]
 pub struct UninstallProgressDto {
     pub app_id: usize,
@@ -912,6 +1091,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("commands-fixture");
         let _ = fs::remove_dir_all(&root);
         write(&root.join("web/package.json"), 10);
+        write(&root.join("web/package-lock.json"), 10);
         write(&root.join("web/node_modules/a/index.js"), 1000);
         write(&root.join("web/src/main.js"), 50);
         write(&root.join("logs/app.log"), 300);
@@ -922,6 +1102,9 @@ mod tests {
         let app = mock_builder().manage(Shared::default()).build(mock_context(noop_assets())).unwrap();
         let h = app.handle().clone();
         let scan_id = start_scan(h.clone(), app.state(), path_str(&root)).unwrap();
+        assert_eq!(get_settings(app.state()).last_root, Some(path_str(&root)), "the automatic rescan repeats this scan");
+        assert_eq!(set_settings(app.state(), false, 1).rescan_minutes, 15, "floor applies");
+        assert_eq!(get_settings(app.state()).last_root, Some(path_str(&root)), "saving preferences keeps the target");
         assert_eq!(start_scan(h.clone(), app.state(), path_str(&root)).err().as_deref(), Some(BUSY));
         wait(&app, |s| s.scan_job.is_none());
 
@@ -935,11 +1118,24 @@ mod tests {
 
         let rows = findings(app.state(), scan_id).unwrap();
         let nm = rows.iter().find(|f| f.category == "NodeModules").expect("node_modules is found");
+
+        // Projects: artifact ids are finding ids, so a project's artifact is cleaned like any finding.
+        let web = |list: Vec<ProjectRow>| list.into_iter().find(|p| p.name == "web").expect("web is a project");
+        let before = web(projects(app.state(), scan_id).unwrap());
+        assert_eq!(before.kinds, ["Node.js"]);
+        assert_eq!(before.artifacts[0].id, nm.id);
+        assert_eq!(before.artifacts[0].rel, "node_modules");
+        assert_eq!(before.artifacts[0].restore, "npm ci");
+        assert_eq!(before.cleanable, 1000);
+        assert_eq!(before.size, 1000 + 10 + 10 + 50);
+        assert!(projects(app.state(), scan_id + 1).is_err());
+
         let req = || CleanRequest {
             scan_id,
             ids: vec![nm.id],
             folders: vec![old.path.clone()],
             dism: false,
+            dism_reset_base: false,
             hibernate_off: false,
             use_trash: false,
         };
@@ -962,6 +1158,9 @@ mod tests {
         assert_eq!(report(app.state()).unwrap().freed, 1000 + BIG);
         let left = findings(app.state(), scan_id).unwrap();
         assert!(left.iter().all(|f| f.category != "NodeModules"), "cleaned findings leave the results");
+        let after = web(projects(app.state(), scan_id).unwrap());
+        assert!(after.artifacts.is_empty());
+        assert_eq!((after.cleanable, after.size), (0, 10 + 10 + 50));
         fs::remove_dir_all(&root).unwrap();
     }
 }

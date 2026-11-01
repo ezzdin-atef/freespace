@@ -99,6 +99,37 @@ export interface FindingRow {
   mode: "contents" | "whole";
 }
 
+export interface ArtifactRow {
+  /** A finding id: tick and clean it like any other finding. */
+  id: number;
+  path: string;
+  /** Path inside the project. */
+  rel: string;
+  label: string;
+  size: number;
+  files: number;
+  safety: SafetyKey;
+  note: string;
+  /** Command or hint for getting it back. */
+  restore: string;
+}
+
+export interface ProjectRow {
+  id: number;
+  name: string;
+  path: string;
+  kinds: string[];
+  size: number;
+  files: number;
+  cleanable: number;
+  /** Seconds since 1970; null when nothing in the project has a date. */
+  last_active: number | null;
+  dormant: boolean;
+  /** null when the project is not a git repository. */
+  branch: string | null;
+  artifacts: ArtifactRow[];
+}
+
 export interface UsageRow {
   name: string;
   path: string;
@@ -121,6 +152,7 @@ export interface UsageLevel {
 export const groups = (scanId: number) => invoke<Group[]>("groups", { scanId });
 export const findings = (scanId: number) => invoke<FindingRow[]>("findings", { scanId });
 export const fullCleanIds = (scanId: number) => invoke<number[]>("full_clean_ids", { scanId });
+export const projects = (scanId: number) => invoke<ProjectRow[]>("projects", { scanId });
 export const usage = (scanId: number, path: string | null = null) => invoke<UsageLevel>("usage", { scanId, path });
 
 // ------------------------------------------------------------------ clean
@@ -131,6 +163,8 @@ export interface CleanRequest {
   /** Folders ticked in Space usage, exactly as `UsageRow.path` gave them. */
   folders?: string[];
   dism?: boolean;
+  /** Adds /ResetBase to the DISM run; ignored without `dism`. */
+  dism_reset_base?: boolean;
   hibernate_off?: boolean;
   use_trash?: boolean;
 }
@@ -142,6 +176,7 @@ export interface Plan {
   blocked: PathReason[];
   warn: string | null;
   dism: boolean;
+  dism_reset_base: boolean;
   hibernate_off: boolean;
 }
 
@@ -238,6 +273,14 @@ export const planLeftovers = (appId: number, gen: number, ids: number[]) =>
   invoke<Plan>("plan_leftovers", { appId, gen, ids });
 export const deleteLeftovers = (appId: number, gen: number, ids: number[], useTrash: boolean) =>
   invoke<void>("delete_leftovers", { appId, gen, ids, useTrash });
+/** An app to reset, with the `gen` of the leftover list its data folders were read from. */
+export interface ResetPick {
+  app_id: number;
+  gen: number;
+}
+
+export const planReset = (picks: ResetPick[]) => invoke<Plan>("plan_reset", { picks });
+export const resetApps = (picks: ResetPick[], useTrash: boolean) => invoke<void>("reset_apps", { picks, useTrash });
 export const uninstall = (appId: number) => invoke<void>("uninstall", { appId });
 export const stopUninstall = () => invoke<void>("stop_uninstall");
 export const removeEntry = (appId: number) => invoke<string>("remove_entry", { appId });
@@ -247,6 +290,17 @@ export const removeEntry = (appId: number) => invoke<string>("remove_entry", { a
 export const reveal = (path: string) => invoke<void>("reveal", { path });
 export const relaunchAdmin = () => invoke<boolean>("relaunch_admin");
 export const resetPc = () => invoke<void>("reset_pc");
+
+export interface Settings {
+  start_in_tray: boolean;
+  /** 0 turns the automatic rescan off. */
+  rescan_minutes: number;
+  last_root: string | null;
+}
+
+export const getSettings = () => invoke<Settings>("get_settings");
+export const setSettings = (startInTray: boolean, rescanMinutes: number) =>
+  invoke<Settings>("set_settings", { startInTray, rescanMinutes });
 
 // ------------------------------------------------------------------ events
 
@@ -260,6 +314,10 @@ interface Events {
   "leftovers:changed": { app_id: number };
   "uninstall:progress": UninstallProgress;
   "uninstall:done": UninstallDone;
+  /** The timer says a rescan is due; the UI decides whether now is a good moment. */
+  "rescan:due": { root: string };
+  /** "Rescan now" in the tray menu. */
+  "rescan:now": null;
 }
 
 /** Subscribes to a backend event; returns the unsubscribe function. */

@@ -83,6 +83,21 @@ gigabytes hiding in `node_modules`, build output, Python environments and tool c
 - **Interactive treemap.** A visual map of the current folder, sized by what each child takes up.
 - **Delete any folder in one tick.** Mark folders straight from the explorer; protected paths stay locked.
 
+### Project analyzer
+
+- **Every code project on the drive.** Node.js, Rust, .NET, Python, Go, Java, Flutter, PHP and more, found by
+  their project files and git repositories, with monorepos counted as one project.
+- **What each one really costs.** Total size, your own files, and what can be rebuilt: `node_modules`, `target`,
+  `bin`/`obj`, `.next`, `.venv`, `dist`, `.pnpm-store`, test reports and the dependencies of agent worktrees. Your
+  source code is never offered for deletion.
+- **Active or dormant.** Last activity comes from file edits and git history. Projects untouched for 90 days are
+  marked dormant, and one click ticks everything safe in them.
+- **Checks before it recommends.** `node_modules` without a lockfile, a virtual environment without a requirements
+  file and build output committed to git all drop to **Review**, and every item shows how to get it back, such as
+  `pnpm install` or `git restore dist`.
+- **Reads git without running it.** Scanning a drive can reach folders you do not trust, and a repository's config
+  can make `git` run programs, so Freespace only reads the files in `.git`.
+
 ### Large file finder
 
 - Surfaces the biggest files on the drive, wherever they hide, so old ISOs, videos and installers stop
@@ -91,7 +106,8 @@ gigabytes hiding in `node_modules`, build output, Python environments and tool c
 ### Full clean
 
 - **Everything safe in one go,** plus Windows rollback leftovers such as previous Windows installations.
-- **Deeper system cleanup** with optional DISM component store cleanup and hibernation file removal.
+- **Deeper system cleanup** with optional DISM component store cleanup (optionally with `/ResetBase` to drop update
+  backups) and hibernation file removal.
 - **Preview first.** See the per-category breakdown and total, then run it or just pre-select the items to
   review them yourself.
 - **Shortcut to Reset this PC** for when you want a truly fresh Windows.
@@ -103,14 +119,26 @@ gigabytes hiding in `node_modules`, build output, Python environments and tool c
 - **Leftover sweep.** After uninstalling, Freespace looks for the folders the app left behind and lets you
   remove them.
 - **Broken entries.** Remove stale entries for apps that are already gone from disk.
+- **Reset app data.** Delete an app's settings, sign-ins and local data so it starts like a fresh install, while the
+  program stays installed. Tick several apps to reset them together.
 
 ### Safe by design
 
 - **Recycle Bin mode.** Send items to the Recycle Bin instead of deleting them permanently.
 - **Clean report.** A summary after every clean of what was removed, what was skipped, and how much space
   came back.
-- **Admin only when needed.** Runs as a normal user and offers to restart elevated when a cleanup needs it.
+- **Runs as administrator.** Asks once per launch through the Windows prompt, so system caches can be cleaned. Say no
+  and it still runs as a normal user, and offers to restart elevated from the top bar.
   See [How it keeps you safe](#how-it-keeps-you-safe) for the full picture.
+
+### In the background
+
+- **Lives in the tray.** Closing the window keeps Freespace running; click the tray icon to come back, or use **Quit**
+  in its menu to exit. It starts in the tray too, once you have run a first scan. Launching it again opens the window
+  that is already running.
+- **Rescans on a schedule.** Repeats your last scan every 30 minutes to once a day (1 hour by default), or never. The
+  tray tooltip shows how much can be cleaned. It only reads the disk: nothing is ever deleted without you.
+- **Stays out of your way.** A rescan waits while you are using the window or have items ticked.
 
 ### Built to be fast to use
 
@@ -134,8 +162,8 @@ gigabytes hiding in `node_modules`, build output, Python environments and tool c
 
 | Area | Categories |
 | --- | --- |
-| **Windows** | Recycle Bin, user and system temp files, Windows Update cache, crash dumps and error reports, Windows logs, previous Windows installations, thumbnail cache |
-| **Apps** | Browser caches, app caches, GPU shader caches, leftovers from uninstalled apps |
+| **Windows** | Recycle Bin, user and system temp files, Windows Update cache, crash dumps and error reports, Windows logs, previous Windows installations and upgrade files, thumbnail cache |
+| **Apps** | Browser caches, app caches, GPU shader caches, older app versions and downloaded updates, extracted driver installers, leftovers from uninstalled apps |
 | **Developers** | `node_modules`, build artifacts, Python virtual environments, developer tool caches, log files |
 | **You decide** | Large files, plus any folder you pick in the space usage view |
 
@@ -157,7 +185,7 @@ gigabytes hiding in `node_modules`, build output, Python environments and tool c
 3. Launch Freespace and pick a drive to scan.
 
 Some cleanups (Windows temp, the Windows Update cache, other users' files and most uninstalls) need
-administrator rights. Freespace offers to restart itself elevated from the top bar when you need them.
+administrator rights, so Freespace asks for them through the Windows prompt each time it starts.
 
 ### Requirements
 
@@ -270,6 +298,7 @@ src/            Rust backend
   state.rs      session state and delete-plan building (ids are checked against the scan they came from)
   scanner.rs    parallel disk walk
   cleaner.rs    deletes with per-path safety re-checks
+  projects.rs   groups dev findings by project, checks lockfiles and git
   safety.rs     what may and may not be deleted
   rules.rs      categories and matching rules
   apps.rs       installed apps, leftovers and uninstall

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AppWindow, Broom, CheckSquare, ListRemove, Square, Stop, Trash } from "../lib/icons";
+  import { AppWindow, Broom, CheckSquare, ListRemove, Square, Stop, Trash, Undo } from "../lib/icons";
   import { session } from "../lib/session.svelte";
   import { fmtCount, fmtSize } from "../lib/format";
   import Button from "./Button.svelte";
@@ -14,16 +14,24 @@
   const appName = (id: number) => session.apps.find((a) => a.id === id)?.name ?? "this app";
 </script>
 
-{#if c && (c.kind === "clean" || c.kind === "leftovers")}
+{#if c && (c.kind === "clean" || c.kind === "leftovers" || c.kind === "reset")}
   {@const plan = c.plan}
-  <Modal icon={Trash} tone="danger" title="Delete {fmtSize(plan.bytes)}?" onclose={() => session.cancelConfirm()}>
+  {@const reset = c.kind === "reset"}
+  <Modal
+    icon={reset ? Undo : Trash}
+    tone="danger"
+    title={reset
+      ? `Reset ${c.picks.length === 1 ? appName(c.picks[0].app_id) : `${c.picks.length} apps`}? (${fmtSize(plan.bytes)})`
+      : `Delete ${fmtSize(plan.bytes)}?`}
+    onclose={() => session.cancelConfirm()}
+  >
     <p>
       {fmtCount(plan.count)}
-      {plan.count === 1 ? "item" : "items"} will be {session.useTrash ? "moved to the Recycle Bin" : "permanently deleted"}.
-      Files that are in use are skipped.
+      {reset ? (plan.count === 1 ? "data folder" : "data folders") : plan.count === 1 ? "item" : "items"} will be
+      {session.useTrash ? "moved to the Recycle Bin" : "permanently deleted"}. Files that are in use are skipped.
     </p>
     {#if plan.warn}
-      <Callout tone="danger" title="The app is still installed"><p>{plan.warn}</p></Callout>
+      <Callout tone="danger" title={reset ? "The apps start over" : "The app is still installed"}><p>{plan.warn}</p></Callout>
     {/if}
     {#if plan.caution.length > 0}
       <Callout tone="review" title="{plan.caution.length} {plan.caution.length === 1 ? 'item needs' : 'items need'} a look">
@@ -40,7 +48,13 @@
         </ul>
       </Callout>
     {/if}
-    {#if plan.dism}<p>Then: Windows component store cleanup (several minutes).</p>{/if}
+    {#if plan.dism}
+      <p>
+        Then: Windows component store cleanup (several minutes){plan.dism_reset_base
+          ? ", removing update backups - installed updates can no longer be uninstalled"
+          : ""}.
+      </p>
+    {/if}
     {#if plan.hibernate_off}<p>Then: turn off hibernation.</p>{/if}
 
     {#snippet footer()}
@@ -51,7 +65,7 @@
       <span class="grow"></span>
       <Button label="Cancel" onclick={() => session.cancelConfirm()} />
       <!-- No autofocus on Delete: a stray Enter must never delete. -->
-      <Button label="Delete" icon={Trash} variant="danger" onclick={() => session.confirmGo()} />
+      <Button label={reset ? "Reset" : "Delete"} icon={reset ? Undo : Trash} variant="danger" onclick={() => session.confirmGo()} />
     {/snippet}
   </Modal>
 {:else if c?.kind === "uninstall"}

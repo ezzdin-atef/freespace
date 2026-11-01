@@ -57,6 +57,7 @@ export {
   AppWindowIcon as AppWindow,
   ArrowDownIcon as ArrowDown,
   ArrowRightIcon as ArrowRight,
+  BoxIcon as Box,
   BroomIcon as Broom,
   CalendarIcon as Calendar,
   CaretDownIcon as CaretDown,
@@ -65,6 +66,7 @@ export {
   CheckIcon as Check,
   CheckSquareIcon as CheckSquare,
   ClipboardIcon as Clipboard,
+  ProgrammingIcon as Code,
   DownloadIcon as Download,
   FileIcon as File,
   FolderIcon as Folder,
@@ -115,6 +117,8 @@ const CATEGORY_ICONS: Record<string, IconComponent> = {
   LargeFiles: FileIcon,
   Custom: FolderIcon,
   AppLeftovers: FolderErrorIcon,
+  AppUpdates: RefreshIcon,
+  AppData: RestartIcon,
 };
 
 export function categoryIcon(category: string): IconComponent {

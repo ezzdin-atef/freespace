@@ -13,10 +13,13 @@ import type {
   Group,
   Leftovers,
   Plan,
+  ProjectRow,
   Report,
+  ResetPick,
   SafetyKey,
   ScanProgress,
   ScanSummary,
+  Settings,
   UninstallProgress,
   UsageLevel,
   UsageRow,
@@ -29,6 +32,7 @@ export type View =
   | { page: "large" }
   | { page: "full" }
   | { page: "report" }
+  | { page: "projects" }
   | { page: "apps" };
 
 export type Tone = "safe" | "review" | "danger";
@@ -36,11 +40,13 @@ export type Show = "all" | SafetyKey;
 /** "date" (newest first) is offered only where rows have a date: Installed apps. */
 export type Sort = "size" | "name" | "group" | "date";
 export type AppShow = "all" | "desktop" | "store";
+export type ProjectShow = "all" | "active" | "dormant";
 
 /** What the confirm dialog is asking about. */
 export type Confirm =
   | { kind: "clean"; plan: Plan; req: CleanRequest }
   | { kind: "leftovers"; plan: Plan; appId: number; gen: number; ids: number[] }
+  | { kind: "reset"; plan: Plan; picks: ResetPick[] }
   | { kind: "uninstall"; appId: number }
   | { kind: "entry"; appId: number };
 
@@ -77,6 +83,8 @@ class Session {
   fullIds = $state.raw<number[]>([]);
   /** Extra maintenance offered on the Full clean page. */
   dism = $state(false);
+  /** DISM /ResetBase: only offered while `dism` is on. */
+  dismResetBase = $state(false);
   hibernateOff = $state(false);
 
   confirm = $state<Confirm | null>(null);
@@ -91,6 +99,11 @@ class Session {
   /** Folders ticked in Space usage (path -> size); cleaned together with the ticked findings. */
   readonly selectedFolders = new SvelteMap<string, number>();
 
+  /** Projects of the current scan. Their artifacts are findings, so they share `selected` and the clean flow. */
+  projects = $state.raw<ProjectRow[]>([]);
+  projectShow = $state<ProjectShow>("all");
+  projectFocus = $state<number | null>(null);
+
   // Installed apps. App ids stay valid for the whole session (Rust loads the list once).
   apps = $state.raw<AppRow[]>([]);
   appsLoading = $state(true);
@@ -102,12 +115,22 @@ class Session {
   /** Ticked leftover ids per app; reset to Rust's defaults whenever that app's list is rescanned. */
   leftoverTicks = $state<Record<number, number[]>>({});
   uninstalling = $state<UninstallProgress | null>(null);
+  /** Apps ticked on the Installed apps page, to reset together. */
+  readonly resetTicks = new SvelteSet<number>();
+  /** True while the folders of apps about to be reset are still being looked up. */
+  resetPreparing = $state(false);
+  /** What the running clean was started for, so its done message fits. */
+  private cleanKind: Confirm["kind"] | null = null;
 
   // List-page controls. Filter and sort carry over between pages; Show and focus reset.
   filter = $state("");
   sort = $state<Sort>("size");
   show = $state<Show>("all");
   focusId = $state<number | null>(null);
+
+  settings = $state<Settings | null>(null);
+  /** The running scan was started by the timer or tray, so it must not move the user to another page. */
+  private quietScan = false;
 
   toast = $state<Toast | null>(null);
   private toastSeq = 0;
@@ -119,6 +142,16 @@ class Session {
   readonly largeCount = $derived(this.groups.find((g) => g.category === LARGE)?.count ?? 0);
   readonly busy = $derived(this.scanning !== null || this.cleaning !== null || this.uninstalling !== null);
   readonly appCount = $derived(this.appsLoading && this.apps.length === 0 ? null : this.apps.length);
+
+  readonly projectsCleanable = $derived(this.projects.reduce((n, p) => n + p.cleanable, 0));
+  /** What "Tick safe in dormant" would tick. */
+  readonly dormantSafeBytes = $derived(
+    this.projects
+      .filter((p) => p.dormant)
+      .flatMap((p) => p.artifacts)
+      .filter((a) => a.safety === "safe")
+      .reduce((n, a) => n + a.size, 0),
+  );
 
   readonly findingById = $derived(new Map(this.findings.map((f) => [f.id, f])));
   readonly groupByCategory = $derived(new Map(this.groups.map((g) => [g.category, g])));
@@ -203,6 +236,33 @@ class Session {
     else this.selectedFolders.set(row.path, row.size);
   }
 
+  /** How much of this project's artifacts is ticked. */
+  projectTicks(p: ProjectRow): "none" | "some" | "all" {
+    const ticked = p.artifacts.filter((a) => this.selected.has(a.id)).length;
+    return ticked === 0 ? "none" : ticked === p.artifacts.length ? "all" : "some";
+  }
+
+  toggleProject(p: ProjectRow) {
+    this.setProjects([p], this.projectTicks(p) !== "all");
+  }
+
+  /** Ticks or unticks all the artifacts of these projects. The confirm dialog lists any that need a look. */
+  setProjects(rows: ProjectRow[], on: boolean) {
+    for (const p of rows) {
+      for (const a of p.artifacts) {
+        if (!on) this.selected.delete(a.id);
+        else if (a.safety !== "protected") this.selected.add(a.id);
+      }
+    }
+  }
+
+  tickDormantSafe() {
+    for (const p of this.projects) {
+      if (!p.dormant) continue;
+      for (const a of p.artifacts) if (a.safety === "safe") this.selected.add(a.id);
+    }
+  }
+
   // ---------------------------------------------------------------- cleaning
 
   /** Asks Rust what cleaning the ticked rows would do, then opens the confirm dialog. */
@@ -213,6 +273,7 @@ class Session {
       ids: [...this.selected],
       folders: [...this.selectedFolders.keys()],
       dism: maintenance && this.dism,
+      dism_reset_base: maintenance && this.dism && this.dismResetBase,
       hibernate_off: maintenance && this.hibernateOff,
     };
     if (req.ids!.length === 0 && req.folders!.length === 0 && !req.dism && !req.hibernate_off) return;
@@ -246,8 +307,13 @@ class Session {
       elapsed_ms: 0,
       app_id,
     });
+    this.cleanKind = c.kind;
     try {
       switch (c.kind) {
+        case "reset":
+          await api.resetApps(c.picks, this.useTrash);
+          this.cleaning = placeholder(c.plan.count, c.picks.length === 1 ? c.picks[0].app_id : null);
+          break;
         case "clean":
           await api.clean({ ...c.req, use_trash: this.useTrash });
           this.cleaning = placeholder(c.plan.count, null);
@@ -283,6 +349,17 @@ class Session {
       this.report = d.report;
       this.hasReport = true;
     }
+    if (this.cleanKind === "reset") {
+      // Rust rescans each reset app's folders and sends `leftovers:changed`.
+      this.cleanKind = null;
+      this.resetTicks.clear();
+      if (d.report) {
+        const failed = d.report.failed > 0 ? ` ${d.report.failed} files were in use - close the apps and reset again.` : "";
+        this.notify(d.report.failed > 0 ? "review" : "safe", `Reset done: deleted ${fmtSize(d.report.freed)} of app data.${failed}`);
+      }
+      return;
+    }
+    this.cleanKind = null;
     if (d.app_id !== null) {
       // Leftovers: Rust rescans the app's folders and sends `leftovers:changed`.
       if (d.report) {
@@ -397,6 +474,49 @@ class Session {
     }
   }
 
+  toggleResetTick(appId: number) {
+    if (this.resetTicks.has(appId)) this.resetTicks.delete(appId);
+    else this.resetTicks.add(appId);
+  }
+
+  setResetTicks(rows: AppRow[], on: boolean) {
+    for (const a of rows) {
+      if (!on) this.resetTicks.delete(a.id);
+      else if (!a.removed) this.resetTicks.add(a.id);
+    }
+  }
+
+  /** Finds each app's data folders (looking them up first where needed), then asks to reset them. */
+  async requestReset(appIds: number[]) {
+    if (appIds.length === 0 || this.busy || this.confirm || this.resetPreparing) return;
+    this.resetPreparing = true;
+    try {
+      for (const id of appIds) if (!(id in this.leftovers)) this.scanLeftovers(id);
+      // Each lookup ends with `leftovers:changed`; wait for all of them (they run in parallel).
+      const deadline = Date.now() + 120_000;
+      while (appIds.some((id) => this.leftovers[id]?.loading !== false)) {
+        if (Date.now() > deadline) throw new Error("Looking up the apps' folders took too long. Try again.");
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      const picks: ResetPick[] = [];
+      for (const id of appIds) {
+        const gen = this.leftovers[id].gen;
+        if (gen === null) throw new Error("Could not read the apps' folders. Try again.");
+        picks.push({ app_id: id, gen });
+      }
+      const plan = await api.planReset(picks);
+      if (plan.count === 0) {
+        this.notify("review", "No data folders were found for the selected apps - nothing to reset.");
+        return;
+      }
+      this.confirm = { kind: "reset", plan, picks };
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    } finally {
+      this.resetPreparing = false;
+    }
+  }
+
   askUninstall(appId: number) {
     if (!this.busy) this.confirm = { kind: "uninstall", appId };
   }
@@ -423,6 +543,8 @@ class Session {
     await api.on("clean:progress", (p) => (this.cleaning = p));
     await api.on("clean:done", (d) => this.cleanDone(d));
     await api.on("leftovers:changed", (e) => this.leftoversChanged(e.app_id));
+    await api.on("rescan:due", (e) => this.autoRescan(e.root));
+    await api.on("rescan:now", () => this.startScan(this.settings?.last_root ?? this.root, true));
     await api.on("uninstall:progress", (p) => (this.uninstalling = p));
     await api.on("uninstall:done", (d) => {
       this.uninstalling = null;
@@ -435,7 +557,8 @@ class Session {
       const init = await api.init();
       this.drives = init.drives;
       this.isAdmin = init.is_admin;
-      this.root = this.systemDrive()?.root ?? "C:\\";
+      this.settings = await api.getSettings();
+      this.root = this.settings.last_root ?? this.systemDrive()?.root ?? "C:\\";
       const st = await api.status();
       this.hasReport = st.has_report;
       this.scanning = st.scanning;
@@ -463,11 +586,28 @@ class Session {
     return this.drives.find((d) => d.root.toLowerCase() === r || d.root.toLowerCase() === `${r}\\`);
   }
 
-  async startScan(root = this.root) {
+  /** A rescan replaces the results, so it waits while the window is in use or anything is ticked or being confirmed.
+   *  Rust asks again a minute later. */
+  private autoRescan(root: string) {
+    if (document.hasFocus() || this.confirm || this.resetPreparing || this.selection.count > 0) return;
+    this.startScan(root, true);
+  }
+
+  async saveSettings(startInTray: boolean, rescanMinutes: number) {
+    try {
+      this.settings = await api.setSettings(startInTray, rescanMinutes);
+    } catch (e) {
+      this.notify("danger", errorText(e));
+    }
+  }
+
+  async startScan(root = this.root, quiet = false) {
     if (this.busy) return;
     this.root = root;
     try {
       const id = await api.startScan(root);
+      this.quietScan = quiet;
+      if (this.settings) this.settings.last_root = root;
       // Show the scanning page at once instead of waiting for the first progress tick.
       this.scanning = {
         scan_id: id,
@@ -484,15 +624,18 @@ class Session {
       this.groups = [];
       this.findings = [];
       this.fullIds = [];
+      this.projects = [];
+      this.projectFocus = null;
       this.selected.clear();
       this.selectedFolders.clear();
       this.usage = null;
       this.usagePath = [];
       this.usageFocus = null;
       this.focusId = null;
-      if (this.view.page !== "apps") this.view = { page: "home" };
+      if (!quiet && this.view.page !== "apps") this.view = { page: "home" };
     } catch (e) {
-      this.notify("danger", errorText(e));
+      // Nobody asked for a quiet scan, so nobody needs to hear that it could not start.
+      if (!quiet) this.notify("danger", errorText(e));
     }
   }
 
@@ -509,14 +652,22 @@ class Session {
     }
     if (d.summary.cancelled) this.notify("review", "Scan stopped - results are partial.");
     await this.loadScan(d.summary);
-    if (this.view.page !== "apps") this.go({ page: "cleanable", category: null });
+    const quiet = this.quietScan;
+    this.quietScan = false;
+    if (!quiet && this.view.page !== "apps") this.go({ page: "cleanable", category: null });
   }
 
   private async loadScan(summary: ScanSummary) {
     this.scan = summary;
     try {
       const id = summary.scan_id;
-      const [groups, findings, fullIds] = await Promise.all([api.groups(id), api.findings(id), api.fullCleanIds(id)]);
+      const [groups, findings, fullIds, projects] = await Promise.all([
+        api.groups(id),
+        api.findings(id),
+        api.fullCleanIds(id),
+        api.projects(id),
+      ]);
+      this.projects = projects;
       this.groups = groups;
       this.findings = findings;
       this.fullIds = fullIds;

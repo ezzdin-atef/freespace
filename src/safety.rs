@@ -83,7 +83,7 @@ const WINDIR_ALLOWED: &[&str] = &[
     "serviceprofiles\\networkservice\\appdata\\local\\microsoft\\windows\\deliveryoptimization\\cache",
 ];
 
-const PROGRAMDATA_ALLOWED: &[&str] = &["microsoft\\windows\\wer"];
+const PROGRAMDATA_ALLOWED: &[&str] = &["microsoft\\windows\\wer", "nvidia corporation\\downloader"];
 
 const PROFILE_FOLDERS: &[&str] = &[
     "appdata", "documents", "desktop", "downloads", "pictures", "videos", "music", "onedrive",
@@ -266,6 +266,10 @@ mod tests {
         assert!(blocked(&format!("{w}\\SoftwareDistribution\\DataStore")));
         assert!(blocked(&sys().pf));
         assert!(blocked(&format!("{}\\Git\\bin", sys().pf)));
+        let pd = &sys().programdata;
+        assert!(!blocked(&format!("{pd}\\NVIDIA Corporation\\Downloader\\abc123")));
+        assert!(blocked(&format!("{pd}\\NVIDIA Corporation\\Downloader")));
+        assert!(blocked(&format!("{pd}\\NVIDIA Corporation\\Drs")));
         assert!(blocked("C:\\pagefile.sys"));
         assert!(blocked("D:\\System Volume Information\\x"));
         assert!(blocked("C:\\$Recycle.Bin\\S-1-5"));

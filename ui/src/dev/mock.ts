@@ -2,7 +2,7 @@
 // http://localhost:5173). Never bundled into the app: main.ts imports it only in dev mode outside Tauri.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AppRow, CleanRequest, FindingRow, Group, LeftoverRow, Plan, Report, SafetyKey, ScanSummary, UsageLevel, UsageRow } from "../lib/api";
+import type { AppRow, CleanRequest, FindingRow, Group, LeftoverRow, Plan, ProjectRow, Report, ResetPick, SafetyKey, ScanSummary, UsageLevel, UsageRow } from "../lib/api";
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
@@ -62,6 +62,53 @@ function makeFindings(): FindingRow[] {
   return rows;
 }
 
+/** Groups the findings still left by their project folder, like Rust's `projects::analyze`. */
+function makeProjects(findings: FindingRow[]): ProjectRow[] {
+  const kinds: Record<string, string[]> = {
+    "web-shop": ["Node.js"],
+    api: ["Rust"],
+    logcleaner: ["Python"],
+    dashboard: ["Node.js"],
+    mobile: ["Flutter", "Node.js"],
+    "docs-site": ["Node.js"],
+    "ml-lab": ["Python"],
+    game: [".NET"],
+  };
+  const daysAgo = [1, 3, 800, 12, 210, 45, 400, 95];
+  return Object.keys(kinds).map((name, id) => {
+    const path = `C:\\Users\\demo\\projects\\${name}`;
+    const artifacts = findings
+      .filter((f) => f.path.startsWith(`${path}\\`) && ["BuildArtifacts", "NodeModules", "LogFiles"].includes(f.category))
+      .slice(0, 30)
+      .map((f) => ({
+        id: f.id,
+        path: f.path,
+        rel: f.path.slice(path.length + 1),
+        label: f.category === "NodeModules" ? "node_modules" : f.category === "LogFiles" ? "Log files" : "Build output & dev caches",
+        size: f.size,
+        files: f.files,
+        safety: f.safety,
+        note: f.safety === "safe" ? f.note : "Committed to git - it will show up as deleted files until you restore or commit it",
+        restore: f.category === "NodeModules" ? "pnpm install" : f.safety === "safe" ? "Rebuilt by your next build." : `git restore ${f.name}`,
+      }))
+      .sort((a, b) => b.size - a.size);
+    const cleanable = artifacts.reduce((n, a) => n + a.size, 0);
+    return {
+      id,
+      name,
+      path,
+      kinds: kinds[name],
+      size: cleanable + (id + 1) * 180 * MB,
+      files: (id + 1) * 21_000,
+      cleanable,
+      last_active: Math.floor(Date.now() / 1000) - daysAgo[id] * 86400,
+      dormant: daysAgo[id] > 90,
+      branch: id === 2 ? null : id === 5 ? "feature/search-box" : "main",
+      artifacts,
+    };
+  });
+}
+
 /** A fake folder tree: every folder's children are derived from its path, so drilling down is stable. */
 function usageLevel(path: string, size: number): UsageLevel {
   const rand = rng([...path].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 100000, 1));
@@ -98,6 +145,10 @@ function logo(letter: string, color: string): string {
 
 export function install() {
   let findings = makeFindings();
+  let settings = { start_in_tray: true, rescan_minutes: 60, last_root: "C:\\Users\\demo" as string | null };
+  let scanId = 1;
+  // Lets a dev console fire backend events, e.g. __mockEmit("rescan:due", { root: "C:\\" }).
+  (window as unknown as { __mockEmit: typeof emit }).__mockEmit = emit;
   let report: Report | null = null;
   const groups = (): Group[] =>
     CATEGORIES.map(([category, label, description, restore]) => {
@@ -118,6 +169,7 @@ export function install() {
       blocked: rows.filter((f) => f.safety === "protected").map((f) => ({ path: f.path, reason: "Marked Do not delete" })),
       warn: null,
       dism: !!req.dism,
+      dism_reset_base: !!req.dism && !!req.dism_reset_base,
       hibernate_off: !!req.hibernate_off,
     };
   }
@@ -214,6 +266,23 @@ export function install() {
           return groups();
         case "findings":
           return findings;
+        case "get_settings":
+          return settings;
+        case "set_settings": {
+          const a = args as { startInTray: boolean; rescanMinutes: number };
+          settings = { ...settings, start_in_tray: a.startInTray, rescan_minutes: a.rescanMinutes };
+          return settings;
+        }
+        case "start_scan": {
+          const id = ++scanId;
+          settings = { ...settings, last_root: (args as { root: string }).root };
+          setTimeout(() => emit("scan:done", { scan_id: id, summary: { ...scan, scan_id: id } }), 400);
+          return id;
+        }
+        case "stop_scan":
+          return null;
+        case "projects":
+          return makeProjects(findings);
         case "full_clean_ids":
           return findings.filter((f) => f.safety === "safe" && f.category !== "LargeFiles").map((f) => f.id);
         case "plan_clean":
@@ -258,6 +327,7 @@ export function install() {
             blocked: [],
             warn: apps[appId].removed ? null : `${apps[appId].name} is still installed. Deleting its files will break it - uninstall it first.`,
             dism: false,
+            dism_reset_base: false,
             hibernate_off: false,
           };
           if (cmd === "plan_leftovers") return p;
@@ -265,6 +335,30 @@ export function install() {
             report = { freed: p.bytes, files: 900, failed: 0, failures: [], skipped: [], maintenance: [], processed: p.count, elapsed_ms: 400, used_trash: false, cancelled: false };
             emit("clean:done", { report, app_id: appId, drives: DRIVES });
             scanLeftovers(appId);
+          }, 600);
+          return null;
+        }
+        case "plan_reset":
+        case "reset_apps": {
+          // Only the fully matching settings folder counts as app data (like Rust's `reset_targets`).
+          const picks = (args as { picks: ResetPick[] }).picks.filter((p) => !apps[p.app_id].removed);
+          const items = picks.flatMap((p) => (leftovers[p.app_id]?.items ?? []).filter((l) => l.id === 0));
+          const who = picks.length === 1 ? apps[picks[0].app_id].name : `these ${picks.length} apps`;
+          const p: Plan = {
+            count: items.length,
+            bytes: items.reduce((n, l) => n + l.size, 0),
+            caution: [],
+            blocked: [],
+            warn: items.length ? `Close ${who} first. Their settings, sign-ins and local data are deleted, and they start like a fresh install.` : null,
+            dism: false,
+            dism_reset_base: false,
+            hibernate_off: false,
+          };
+          if (cmd === "plan_reset") return p;
+          setTimeout(() => {
+            report = { freed: p.bytes, files: 900, failed: 0, failures: [], skipped: [], maintenance: [], processed: p.count, elapsed_ms: 400, used_trash: false, cancelled: false };
+            emit("clean:done", { report, app_id: picks.length === 1 ? picks[0].app_id : null, drives: DRIVES });
+            for (const pk of picks) scanLeftovers(pk.app_id);
           }, 600);
           return null;
         }

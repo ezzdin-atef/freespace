@@ -25,6 +25,7 @@
     sort,
     onsort,
     checked,
+    mixed,
     checkable,
     ontoggle,
     onsetall,
@@ -41,6 +42,8 @@
     onsort?: (s: S) => void;
     /** When given, a checkbox column comes first. */
     checked?: (row: T) => boolean;
+    /** The row stands for several things and only some are ticked. */
+    mixed?: (row: T) => boolean;
     checkable?: (row: T) => boolean;
     ontoggle?: (row: T) => void;
     /** When given, the header checkbox ticks (or unticks) every tickable row currently shown. */
@@ -131,6 +134,7 @@
               <span class="td check">
                 <Checkbox
                   checked={checked(row)}
+                  mixed={mixed?.(row) ?? false}
                   disabled={checkable ? !checkable(row) : false}
                   label="Tick for cleaning"
                   onchange={() => ontoggle?.(row)}

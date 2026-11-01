@@ -4,9 +4,11 @@
   import { driveLabel, fmtSize } from "../lib/format";
   import Button from "../components/Button.svelte";
   import Card from "../components/Card.svelte";
+  import Checkbox from "../components/Checkbox.svelte";
   import Field from "../components/Field.svelte";
   import Kbd from "../components/Kbd.svelte";
   import Pill from "../components/Pill.svelte";
+  import Segmented from "../components/Segmented.svelte";
   import UsageBar from "../components/UsageBar.svelte";
 
   let folder = $state("");
@@ -22,6 +24,15 @@
       scan(path);
     }
   }
+
+  const rescanOptions = [
+    { key: "0", label: "Off" },
+    { key: "30", label: "30 min" },
+    { key: "60", label: "1 hour" },
+    { key: "360", label: "6 hours" },
+    { key: "1440", label: "1 day" },
+  ];
+  const settings = $derived(session.settings);
 
   const shortcuts = [
     ["Up / Down", "Move through a list"],
@@ -89,6 +100,38 @@
       </div>
     </Card>
   </div>
+
+  {#if settings}
+    {@const s = settings}
+    <h2>In the background</h2>
+    <Card pad={20}>
+      <div class="bg-row">
+        <div>
+          <b>Rescan automatically</b>
+          <p>
+            {s.last_root ? `Repeats your last scan of ${s.last_root}.` : "Starts after your first scan."} It waits while you
+            are using the window or have something ticked.
+          </p>
+        </div>
+        <Segmented
+          items={rescanOptions}
+          value={String(s.rescan_minutes)}
+          onchange={(m) => session.saveSettings(s.start_in_tray, Number(m))}
+        />
+      </div>
+      <div class="bg-row">
+        <div>
+          <b>Start in the tray</b>
+          <p>Launch without opening this window. Closing the window always keeps Freespace in the tray; use Quit in the tray menu to exit.</p>
+        </div>
+        <Checkbox
+          checked={s.start_in_tray}
+          label="Start in the tray"
+          onchange={() => session.saveSettings(!s.start_in_tray, s.rescan_minutes)}
+        />
+      </div>
+    </Card>
+  {/if}
 
   <h2>Good to know</h2>
   <div class="grid">
@@ -201,6 +244,26 @@
     margin: 32px 0 12px;
     font-size: 16px;
     font-weight: 600;
+  }
+  .bg-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .bg-row + .bg-row {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .bg-row b {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .bg-row p {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--mut);
   }
   h3 {
     margin-bottom: 10px;

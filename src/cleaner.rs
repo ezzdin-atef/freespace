@@ -22,6 +22,8 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 pub struct Maintenance {
     /// DISM /StartComponentCleanup - shrinks WinSxS.
     pub dism: bool,
+    /// Adds /ResetBase to the DISM run: frees more, but installed updates can no longer be uninstalled.
+    pub reset_base: bool,
     /// powercfg /hibernate off - removes hiberfil.sys.
     pub hibernate_off: bool,
 }
@@ -246,11 +248,11 @@ fn run(items: Vec<Finding>, use_trash: bool, maint: Maintenance, policy: Policy,
     let mut maintenance = Vec::new();
     if maint.dism && !prog.cancel.load(Relaxed) {
         *prog.current.lock().unwrap() = "Windows component store cleanup (DISM) - can take several minutes...".into();
-        maintenance.push(run_cmd(
-            "Component store cleanup",
-            "dism.exe",
-            &["/Online", "/Cleanup-Image", "/StartComponentCleanup"],
-        ));
+        let mut args = vec!["/Online", "/Cleanup-Image", "/StartComponentCleanup"];
+        if maint.reset_base {
+            args.push("/ResetBase");
+        }
+        maintenance.push(run_cmd("Component store cleanup", "dism.exe", &args));
     }
     if maint.hibernate_off && !prog.cancel.load(Relaxed) {
         *prog.current.lock().unwrap() = "Turning off hibernation...".into();

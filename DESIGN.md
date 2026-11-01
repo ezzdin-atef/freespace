@@ -21,6 +21,12 @@ colours: they only ever label safety.
 | `--text` | `#474a6e` | Body text |
 | `--safe`, `--review`, `--danger` | Same family as the app | Safety labels only |
 
+## Logo
+
+`icons/source.svg` is the master: white squares on an indigo tile. `icons/source-16.svg`, `-24` and `-32` are the same
+mark redrawn on the pixel grid, because scaling the master down blurs it at those sizes. `site/icon.svg` is a copy of the
+master. The PNG, ICO, favicon and installer images are rendered from these files.
+
 ## Type
 
 Self-hosted from `site/fonts/`, under the SIL Open Font License.

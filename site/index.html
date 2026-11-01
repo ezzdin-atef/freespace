@@ -3,12 +3,135 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Freespace - disk cleaner for Windows developers</title>
-  <meta name="description" content="Freespace finds the gigabytes your projects can rebuild, labels every item Safe, Review or Do not delete, and removes only what you tick and confirm. Free and open source for Windows 10 and 11." />
-  <meta property="og:title" content="Freespace - reclaim your disk, keep your code" />
-  <meta property="og:description" content="node_modules, build output and caches, labelled with how to get them back. Free and open source for Windows." />
+  <title>Freespace: Free Disk Cleaner for Windows and Developers</title>
+  <meta name="description" content="Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source." />
+  <meta name="keywords" content="disk cleaner for Windows, free up disk space Windows 11, delete node_modules, clear npm cache, Windows Update cache, delete log files, what is taking up space on C drive, open source disk cleaner" />
+  <meta name="author" content="Ezzdin Atef" />
+  <link rel="canonical" href="https://ezzdin-atef.github.io/freespace/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Freespace" />
+  <meta property="og:url" content="https://ezzdin-atef.github.io/freespace/" />
+  <meta property="og:title" content="Freespace: Free Disk Cleaner for Windows and Developers" />
+  <meta property="og:description" content="Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source." />
+  <meta property="og:image" content="https://ezzdin-atef.github.io/freespace/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Freespace: free up disk space on Windows, and keep your code." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Freespace: Free Disk Cleaner for Windows and Developers" />
+  <meta name="twitter:description" content="Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source." />
+  <meta name="twitter:image" content="https://ezzdin-atef.github.io/freespace/og.png" />
   <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "Freespace",
+      "url": "https://ezzdin-atef.github.io/freespace/",
+      "description": "Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Windows 10, Windows 11",
+      "downloadUrl": "https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Ezzdin Atef",
+        "url": "https://github.com/ezzdin-atef"
+      },
+      "image": "https://ezzdin-atef.github.io/freespace/og.png"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I free up disk space on Windows 11 or Windows 10?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Scan your drive with Freespace, review what it finds by category, and tick what to remove. Temp files, browser caches, Windows Update downloads, package manager caches and build output are good places to start. Every item is labelled, and nothing is deleted until you confirm."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is taking up space on my C drive?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Space usage page lists folders biggest-first beside a treemap, so you can open any folder and see where the space went. The Large files page finds files of 512 MB or more, such as old ISOs, virtual disks and archives."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it safe to delete node_modules?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, if the project has a lockfile, because npm ci, pnpm install or yarn install restores the exact versions. Freespace looks for the lockfile first. Without one, node_modules is marked Review, since a reinstall may pick different versions."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it safe to clear the npm, pip or Cargo cache?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Package manager caches hold downloads, which come back the next time a project needs them. Freespace marks larger stores such as Gradle, Maven, NuGet packages and the pnpm store as Review, because your next build has more to fetch."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I delete the Windows Update cache?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Downloaded updates in SoftwareDistribution\\Download can be deleted, and Windows downloads again whatever it still needs. Cleaning this folder needs administrator rights, which Freespace asks for when it starts."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I delete .log and .dmp files on Windows?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Usually. Old log files and crash dumps are only useful for debugging. Freespace marks logs written in the last 7 days as Review, and skips database journals that only look like logs, because deleting those corrupts data."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Will clearing the browser cache delete my passwords?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Freespace only removes cache folders from Chrome, Edge, Brave, Firefox and Opera. Passwords, history and cookies are not touched. Close the browser first so its files are not in use."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I undo a delete?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, if you choose the Recycle Bin option in the confirm dialog, which moves items there instead of deleting them permanently. The space only comes back once you empty the bin."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Freespace free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Freespace is free and open source under the MIT license, with no account, no ads and no telemetry. It runs on Windows 10 and 11, 64-bit."
+          }
+        }
+      ]
+    }
+  ]
+}
+  </script>
   <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin />
   <style>
     @font-face { font-family: "Geist"; src: url(fonts/geist.woff2) format("woff2"); font-weight: 400 700; font-display: swap; }
@@ -190,6 +313,16 @@
     .fullclean code { color: var(--white); }
     .fullclean .node { background: var(--white); color: var(--brand); }
 
+    /* ---------------------------------------------------------------- questions */
+    .faq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; margin-top: clamp(24px, 3vw, 40px); }
+    .faq details { border-radius: var(--r-md); background: var(--brand-50); }
+    .faq summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 22px; color: var(--ink); font-weight: 600; font-size: 16.5px; line-height: 1.3; cursor: pointer; list-style: none; border-radius: var(--r-md); }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary:hover { background: var(--brand-100); }
+    .faq summary::after { content: ""; flex: none; width: 10px; height: 10px; border-right: 2.4px solid var(--brand); border-bottom: 2.4px solid var(--brand); transform: translateY(-2px) rotate(45deg); transition: transform 0.15s; }
+    .faq details[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+    .faq p { padding: 0 22px 20px; font-size: 15.5px; line-height: 1.5; }
+
     /* ---------------------------------------------------------------- labels */
     .spec { margin-top: clamp(32px, 4vw, 56px); border-radius: var(--r-lg); background: var(--brand-50); padding: 8px clamp(16px, 2.4vw, 32px); }
     .spec > div { display: grid; grid-template-columns: 170px minmax(0, 3fr) minmax(0, 4fr); gap: 8px 28px; align-items: center; padding: 22px 0; }
@@ -234,6 +367,7 @@
       .flow li:not(:last-child)::after { left: 31px; right: auto; top: 70px; bottom: -14px; border-top: 0; border-left: 2px dashed var(--brand-300); }
       .s7, .s5 { grid-column: span 12; }
       .foot-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .faq { grid-template-columns: minmax(0, 1fr); }
       .foot-brand { grid-column: 1 / -1; }
       .s4, .s3 { grid-column: span 6; }
     }
@@ -273,7 +407,7 @@
 
     <header class="hero">
       <div>
-        <h1>Reclaim your disk. Keep your&nbsp;code.</h1>
+        <h1>Free up disk space on Windows. Keep your&nbsp;code.</h1>
         <p class="lede">Your drive is full of things your projects can rebuild, plus caches, update downloads and logs. Freespace finds them, labels each one with how to get it back, and removes only what you tick.</p>
         <div class="cta">
           <a class="btn dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">
@@ -364,7 +498,7 @@
 
     <section id="features" style="padding-top: 0">
       <div class="head">
-        <h2>Built for what developers leave behind.</h2>
+        <h2>Delete node_modules and build output, safely.</h2>
       </div>
       <div class="bento">
         <article class="tile s7">
@@ -503,8 +637,8 @@
 
     <section id="cleans" style="padding-top: 0">
       <div class="head">
-        <h2>And everything else Windows piles up.</h2>
-        <p>Caches, update downloads, logs and crash dumps from every corner of the drive, grouped by category with their total size.</p>
+        <h2>Clean caches, Windows Update files and logs.</h2>
+        <p>Temp files, browser caches, update downloads, log files and crash dumps from every corner of the drive, grouped by category with their total size.</p>
       </div>
       <div class="bento">
         <article class="tile s7">
@@ -631,6 +765,50 @@
       </dl>
     </section>
 
+    <section id="faq" style="padding-top: 0">
+      <div class="head">
+        <h2>Common questions.</h2>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>How do I free up disk space on Windows 11 or Windows 10?</summary>
+          <p>Scan your drive with Freespace, review what it finds by category, and tick what to remove. Temp files, browser caches, Windows Update downloads, package manager caches and build output are good places to start. Every item is labelled, and nothing is deleted until you confirm.</p>
+        </details>
+        <details>
+          <summary>What is taking up space on my C drive?</summary>
+          <p>The Space usage page lists folders biggest-first beside a treemap, so you can open any folder and see where the space went. The Large files page finds files of 512 MB or more, such as old ISOs, virtual disks and archives.</p>
+        </details>
+        <details>
+          <summary>Is it safe to delete node_modules?</summary>
+          <p>Yes, if the project has a lockfile, because npm ci, pnpm install or yarn install restores the exact versions. Freespace looks for the lockfile first. Without one, node_modules is marked Review, since a reinstall may pick different versions.</p>
+        </details>
+        <details>
+          <summary>Is it safe to clear the npm, pip or Cargo cache?</summary>
+          <p>Yes. Package manager caches hold downloads, which come back the next time a project needs them. Freespace marks larger stores such as Gradle, Maven, NuGet packages and the pnpm store as Review, because your next build has more to fetch.</p>
+        </details>
+        <details>
+          <summary>Can I delete the Windows Update cache?</summary>
+          <p>Yes. Downloaded updates in SoftwareDistribution\Download can be deleted, and Windows downloads again whatever it still needs. Cleaning this folder needs administrator rights, which Freespace asks for when it starts.</p>
+        </details>
+        <details>
+          <summary>Can I delete .log and .dmp files on Windows?</summary>
+          <p>Usually. Old log files and crash dumps are only useful for debugging. Freespace marks logs written in the last 7 days as Review, and skips database journals that only look like logs, because deleting those corrupts data.</p>
+        </details>
+        <details>
+          <summary>Will clearing the browser cache delete my passwords?</summary>
+          <p>No. Freespace only removes cache folders from Chrome, Edge, Brave, Firefox and Opera. Passwords, history and cookies are not touched. Close the browser first so its files are not in use.</p>
+        </details>
+        <details>
+          <summary>Can I undo a delete?</summary>
+          <p>Yes, if you choose the Recycle Bin option in the confirm dialog, which moves items there instead of deleting them permanently. The space only comes back once you empty the bin.</p>
+        </details>
+        <details>
+          <summary>Is Freespace free?</summary>
+          <p>Yes. Freespace is free and open source under the MIT license, with no account, no ads and no telemetry. It runs on Windows 10 and 11, 64-bit.</p>
+        </details>
+      </div>
+    </section>
+
     <div class="close">
       <div>
         <h2>Get the space back.</h2>
@@ -662,6 +840,7 @@
             <li><a href="#features">Features</a></li>
             <li><a href="#cleans">What it cleans</a></li>
             <li><a href="#specs">Specs</a></li>
+            <li><a href="#faq">Questions</a></li>
           </ul>
         </nav>
         <nav class="foot-col" aria-label="Project">

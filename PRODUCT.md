@@ -6,12 +6,11 @@ Windows desktop app (Tauri 2, Rust, Svelte 5), plus a static landing page in `si
 
 ## Users
 
-Primary: developers on Windows whose drive is full of `node_modules`, build output, package caches and dormant
-projects. They want the space back and are nervous about deleting something a project needs. They read paths and
-commands comfortably.
+Anyone on Windows 10 or 11 whose drive is full and who wants safe, understandable cleanup: temp files, caches, Windows
+Update files, logs, large files and full app removal. It is a whole-disk cleaner first.
 
-Secondary: anyone on Windows 10 or 11 who wants safe, understandable disk cleanup, large file hunting and full app
-removal.
+Developers are an important group with extra features: their drives fill with `node_modules`, build output, package caches
+and dormant projects, and they read paths and commands comfortably. Do not present Freespace as a tool only for code.
 
 ## Purpose
 

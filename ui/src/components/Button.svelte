@@ -84,7 +84,7 @@
   .primary {
     background: var(--acc);
     border-color: var(--acc);
-    box-shadow: 0 1px 2px rgb(79 70 229 / 0.3);
+    box-shadow: 0 1px 2px rgb(3 105 161 / 0.3);
   }
   .primary:hover:not(:disabled) {
     background: var(--acc-hover);

@@ -9,21 +9,21 @@ No screenshots, shadows or gradient fills.
 
 ## Colour
 
-Indigo is the one brand colour across the app, logo, installer and this page. Green, amber and red are never brand
+Slate neutrals with one blue are the brand across the app, logo, installer and this page. Green, amber and red are never brand
 colours: they only ever label safety.
 
 | Token | Value | Meaning |
 | --- | --- | --- |
-| `--brand` | `#4f46e5` | Freespace: actions, main drawing fill. Same value as the app's `--acc` |
-| `--brand-dark` | `#3730a3` | Hover, text on tints |
-| `--brand-300` to `--brand-50` | `#a5b4fc` to `#f1f3ff` | Drawing tints and tile grounds |
-| `--ink` | `#15163a` | Headings, dark tiles |
-| `--text` | `#474a6e` | Body text |
+| `--brand` | `#0369a1` | Freespace: actions, main drawing fill. Same value as the app's `--acc` |
+| `--brand-dark` | `#075985` | Hover, text on tints |
+| `--brand-300` to `--brand-50` | `#94a3b8` to `#f1f5f9` | Slate: lines, drawing tints and tile grounds |
+| `--ink` | `#0f172a` | Headings, dark tiles |
+| `--text` | `#475569` | Body text |
 | `--safe`, `--review`, `--danger` | Same family as the app | Safety labels only |
 
 ## Logo
 
-`icons/source.svg` is the master: white squares on an indigo tile. `icons/source-16.svg`, `-24` and `-32` are the same
+`icons/source.svg` is the master: white squares on a blue tile. `icons/source-16.svg`, `-24` and `-32` are the same
 mark redrawn on the pixel grid, because scaling the master down blurs it at those sizes. `site/icon.svg` is a copy of the
 master. The PNG, ICO, favicon and installer images are rendered from these files.
 
@@ -38,7 +38,7 @@ Self-hosted from `site/fonts/`, under the SIL Open Font License.
 
 - Radii: 32px panels, 24px tiles, 16px rows, full pills for buttons and labels.
 - Flat: depth comes from tints, never from shadows.
-- Drawings are inline SVG in the indigo tints, with round caps and joins. Their sizes are examples, and the hero and project bars say so.
+- Drawings are inline SVG in slate with blue and sky accents, with round caps and joins. Their sizes are examples, and the hero and project bars say so.
 
 ## Components
 

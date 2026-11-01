@@ -1,4 +1,4 @@
-/* Design tokens: slate neutrals, indigo accent. */
+/* Design tokens: slate neutrals, blue accent. */
 :root {
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -9,9 +9,9 @@
   --fg2: #334155;
   --mut: #475569;
   --mut2: #64748b;
-  --acc: #4f46e5;
-  --acc-hover: #4338ca;
-  --acc-bg: #eef2ff;
+  --acc: #0369a1;
+  --acc-hover: #075985;
+  --acc-bg: #e0f2fe;
   --row-hover: #f8fafc;
   --safe: #15803d;
   --safe-bg: #dcfce7;
@@ -29,7 +29,7 @@
   --mono: "Cascadia Mono", Consolas, monospace;
   --shadow-card: 0 1px 3px rgb(15 23 42 / 0.05);
   --shadow-ctl: 0 1px 2px rgb(15 23 42 / 0.06);
-  --ring: 0 0 0 3px rgb(79 70 229 / 0.2);
+  --ring: 0 0 0 3px rgb(3 105 161 / 0.2);
 }
 
 *,

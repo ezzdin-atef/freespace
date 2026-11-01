@@ -3,25 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Freespace: Free Disk Cleaner for Windows and Developers</title>
-  <meta name="description" content="Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source." />
-  <meta name="keywords" content="disk cleaner for Windows, free up disk space Windows 11, delete node_modules, clear npm cache, Windows Update cache, delete log files, what is taking up space on C drive, open source disk cleaner" />
+  <title>Freespace: Free and Safe Disk Cleaner for Windows</title>
+  <meta name="description" content="Free up disk space on Windows 10 and 11. Safely clean temp files, caches, Windows Update files, logs and developer leftovers. Free and open source." />
+  <meta name="keywords" content="disk cleaner for Windows, free up disk space Windows 11, what is taking up space on C drive, delete temp files, Windows Update cache, delete log files, clear npm cache, delete node_modules, open source disk cleaner" />
   <meta name="author" content="Ezzdin Atef" />
   <link rel="canonical" href="https://ezzdin-atef.github.io/freespace/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Freespace" />
   <meta property="og:url" content="https://ezzdin-atef.github.io/freespace/" />
-  <meta property="og:title" content="Freespace: Free Disk Cleaner for Windows and Developers" />
-  <meta property="og:description" content="Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source." />
+  <meta property="og:title" content="Freespace: Free and Safe Disk Cleaner for Windows" />
+  <meta property="og:description" content="Free up disk space on Windows 10 and 11. Safely clean temp files, caches, Windows Update files, logs and developer leftovers. Free and open source." />
   <meta property="og:image" content="https://ezzdin-atef.github.io/freespace/og.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Freespace: free up disk space on Windows, and keep your code." />
+  <meta property="og:image:alt" content="Freespace: free up disk space on Windows, safely." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Freespace: Free Disk Cleaner for Windows and Developers" />
-  <meta name="twitter:description" content="Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source." />
+  <meta name="twitter:title" content="Freespace: Free and Safe Disk Cleaner for Windows" />
+  <meta name="twitter:description" content="Free up disk space on Windows 10 and 11. Safely clean temp files, caches, Windows Update files, logs and developer leftovers. Free and open source." />
   <meta name="twitter:image" content="https://ezzdin-atef.github.io/freespace/og.png" />
-  <meta name="theme-color" content="#4f46e5" />
+  <meta name="theme-color" content="#0369a1" />
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192" />
@@ -34,7 +34,7 @@
       "@type": "SoftwareApplication",
       "name": "Freespace",
       "url": "https://ezzdin-atef.github.io/freespace/",
-      "description": "Free up disk space on Windows 10 and 11. Safely delete node_modules, build output, package caches, Windows Update files and logs. Free and open source.",
+      "description": "Free up disk space on Windows 10 and 11. Safely clean temp files, caches, Windows Update files, logs and developer leftovers. Free and open source.",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Windows 10, Windows 11",
       "downloadUrl": "https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe",
@@ -138,15 +138,15 @@
     @font-face { font-family: "Geist Mono"; src: url(fonts/geist-mono.woff2) format("woff2"); font-weight: 400 600; font-display: swap; }
 
     :root {
-      --brand: #4f46e5;
-      --brand-dark: #3730a3;
-      --brand-300: #a5b4fc;
-      --brand-200: #c7d2fe;
-      --brand-100: #e0e7ff;
-      --brand-50: #f1f3ff;
-      --ink: #15163a;
-      --text: #474a6e;
-      --line: #e3e5f3;
+      --brand: #0369a1;
+      --brand-dark: #075985;
+      --brand-300: #94a3b8;
+      --brand-200: #cbd5e1;
+      --brand-100: #e2e8f0;
+      --brand-50: #f1f5f9;
+      --ink: #0f172a;
+      --text: #475569;
+      --line: #e2e8f0;
       --white: #ffffff;
       --safe: #15803d;
       --safe-bg: #dcfce7;
@@ -234,16 +234,16 @@
     .gauge { margin-top: 20px; padding: 16px 18px; border-radius: var(--r-md); background: var(--ink); color: var(--white); }
     .gauge-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; font-size: 14px; }
     .gauge-top output { font: 600 15px var(--mono); color: var(--white); }
-    .gauge-top span { color: #c6c9ee; }
+    .gauge-top span { color: #cbd5e1; }
     .bar { display: flex; gap: 3px; height: 14px; margin-top: 12px; }
     .bar i { display: block; height: 100%; border-radius: 999px; transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
     .bar .used { background: var(--brand-300); }
     .bar .going { background: var(--white); }
-    .bar .free { flex: 1; background: #34366a; }
-    .dim { display: flex; align-items: center; gap: 10px; margin-top: 8px; font: 400 12px var(--mono); color: #c6c9ee; }
-    .dim::before, .dim::after { content: ""; flex: 1; height: 7px; border-bottom: 1px solid #6d70a8; }
-    .dim::before { border-left: 1px solid #6d70a8; }
-    .dim::after { border-right: 1px solid #6d70a8; }
+    .bar .free { flex: 1; background: #334155; }
+    .dim { display: flex; align-items: center; gap: 10px; margin-top: 8px; font: 400 12px var(--mono); color: #cbd5e1; }
+    .dim::before, .dim::after { content: ""; flex: 1; height: 7px; border-bottom: 1px solid #64748b; }
+    .dim::before { border-left: 1px solid #64748b; }
+    .dim::after { border-right: 1px solid #64748b; }
 
     /* ---------------------------------------------------------------- how it decides */
     section { padding-block: clamp(56px, 7vw, 104px); }
@@ -266,7 +266,7 @@
     .tile .art svg { width: 100%; height: auto; }
     .s7 { grid-column: span 7; } .s5 { grid-column: span 5; } .s4 { grid-column: span 4; } .s3 { grid-column: span 3; }
 
-    .tile.dark { background: var(--ink); color: #c6c9ee; }
+    .tile.dark { background: var(--ink); color: #cbd5e1; }
     .tile.dark h3 { color: var(--white); }
     .tile.dark code { color: var(--white); }
 
@@ -284,10 +284,10 @@
     .legend i { width: 14px; height: 14px; border-radius: 5px; }
 
     .gitfile { width: 100%; font: 400 14px/1.3 var(--mono); }
-    .gitfile div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; border-radius: 12px; background: #24265a; color: #e4e6ff; }
+    .gitfile div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; border-radius: 12px; background: #1e293b; color: #e2e8f0; }
     .gitfile div + div { margin-top: 6px; }
-    .gitfile span:last-child { color: #c6c9ee; text-align: right; }
-    .gitfile .never { background: transparent; box-shadow: inset 0 0 0 2px #4b4e8c; }
+    .gitfile span:last-child { color: #cbd5e1; text-align: right; }
+    .gitfile .never { background: transparent; box-shadow: inset 0 0 0 2px #475569; }
     .gitfile .never span:first-child { text-decoration: line-through; }
 
     /* ---------------------------------------------------------------- what else it cleans */
@@ -296,18 +296,18 @@
     .chips li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--safe); }
     .chips li.look::before { background: #d97706; }
     .logs { width: 100%; font: 400 13.5px/1.35 var(--mono); }
-    .logs div { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) 72px; gap: 4px 14px; align-items: center; padding: 10px 14px; border-radius: 12px; background: #24265a; color: #e4e6ff; }
+    .logs div { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) 72px; gap: 4px 14px; align-items: center; padding: 10px 14px; border-radius: 12px; background: #1e293b; color: #e2e8f0; }
     .logs div + div { margin-top: 6px; }
-    .logs .why { color: #c6c9ee; }
+    .logs .why { color: #cbd5e1; }
     .logs .label { justify-self: end; }
-    .logs .label.skip { background: #34366a; color: #e4e6ff; }
+    .logs .label.skip { background: #334155; color: #e2e8f0; }
     .also { margin-top: 16px; border-radius: var(--r-lg); background: var(--brand-50); padding: 8px clamp(16px, 2.4vw, 32px); }
     .also > div { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) 72px; gap: 4px 28px; align-items: center; padding: 16px 0; }
     .also > div + div { border-top: 2px solid var(--white); }
     .also h3 { font-size: 17px; }
     .also .label { justify-self: end; }
     .also p { font-size: 15.5px; line-height: 1.45; }
-    .fullclean { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; margin-top: 16px; padding: clamp(20px, 2.2vw, 30px); border-radius: var(--r-lg); background: var(--brand); color: #e4e5ff; }
+    .fullclean { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; margin-top: 16px; padding: clamp(20px, 2.2vw, 30px); border-radius: var(--r-lg); background: var(--brand); color: #e0f2fe; }
     .fullclean h3 { color: var(--white); }
     .fullclean p { margin-top: 4px; font-size: 15.5px; line-height: 1.45; }
     .fullclean code { color: var(--white); }
@@ -338,7 +338,7 @@
     dd { color: var(--ink); }
 
     /* ---------------------------------------------------------------- close */
-    .close { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 56px); align-items: center; padding: clamp(32px, 5vw, 72px); border-radius: var(--r-xl); background: var(--brand); color: #e4e5ff; }
+    .close { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 56px); align-items: center; padding: clamp(32px, 5vw, 72px); border-radius: var(--r-xl); background: var(--brand); color: #e0f2fe; }
     .close h2 { color: var(--white); font-size: clamp(38px, 5vw, 68px); }
     .close p { margin-top: 16px; max-width: 34em; }
     .close .cta { margin-top: 26px; }
@@ -398,8 +398,8 @@
     <nav class="nav" aria-label="Main">
       <a class="brand" href="#"><img src="icon.svg" alt="" />Freespace</a>
       <a class="hide-sm" href="#how">How it decides</a>
-      <a class="hide-sm" href="#features">Features</a>
       <a class="hide-sm" href="#cleans">What it cleans</a>
+      <a class="hide-sm" href="#features">For developers</a>
       <a class="hide-sm" href="#specs">Specs</a>
       <a href="https://github.com/ezzdin-atef/freespace">GitHub</a>
       <a class="btn dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download</a>
@@ -407,8 +407,8 @@
 
     <header class="hero">
       <div>
-        <h1>Free up disk space on Windows. Keep your&nbsp;code.</h1>
-        <p class="lede">Your drive is full of things your projects can rebuild, plus caches, update downloads and logs. Freespace finds them, labels each one with how to get it back, and removes only what you tick.</p>
+        <h1>Free up disk space on Windows, safely.</h1>
+        <p class="lede">Freespace scans your whole drive, finds temp files, caches, Windows Update downloads, logs and large files, tells you what is safe to delete, and removes only what you tick.</p>
         <div class="cta">
           <a class="btn dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5Zm0 13 7.5 1.1v-7H3v5.9Zm8.4 1.2L21 21v-8.4h-9.6v7.1Zm0-15.4v7.2H21V3l-9.6 1.3Z"/></svg>
@@ -419,40 +419,50 @@
         <p class="fine">Free and open source. Windows 10 and 11, 64-bit. <span id="meta-version"></span></p>
       </div>
 
-      <form class="anatomy" id="demo" aria-label="Example: tick parts of a project to see the space they free">
+      <form class="anatomy" id="demo" aria-label="Example: tick items from a scan to see the space they free">
         <div class="root">
-          <svg width="46" height="38" viewBox="0 0 46 38" aria-hidden="true"><path d="M4 8a6 6 0 0 1 6-6h8.5a5 5 0 0 1 3.6 1.5L26 7.5h10a6 6 0 0 1 6 6V30a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" fill="#4f46e5"/><path d="M4 16a4 4 0 0 1 4-4h30a4 4 0 0 1 4 4v14a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" fill="#818cf8"/></svg>
-          <div><b>storefront/</b><small>Example project. Tick items to try it.</small></div>
+          <svg width="46" height="38" viewBox="0 0 46 38" aria-hidden="true"><path d="M4 8a6 6 0 0 1 6-6h8.5a5 5 0 0 1 3.6 1.5L26 7.5h10a6 6 0 0 1 6 6V30a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" fill="#0369a1"/><path d="M4 16a4 4 0 0 1 4-4h30a4 4 0 0 1 4 4v14a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" fill="#7dd3fc"/></svg>
+          <div><b>C:\</b><small>Example scan. Tick items to try it.</small></div>
         </div>
         <ul class="tree">
           <li><label class="row">
-            <input type="checkbox" data-gb="1.91" checked />
+            <input type="checkbox" data-gb="5.0" checked />
+            <span class="name">Windows Update cache <span class="label safe">Safe</span></span><span class="size">5.0 GB</span>
+            <span class="how">Windows downloads it again if needed</span>
+          </label></li>
+          <li><label class="row">
+            <input type="checkbox" data-gb="2.9" checked />
+            <span class="name">Temp files <span class="label safe">Safe</span></span><span class="size">2.9 GB</span>
+            <span class="how">nothing to restore</span>
+          </label></li>
+          <li><label class="row">
+            <input type="checkbox" data-gb="2.1" checked />
+            <span class="name">Browser caches <span class="label safe">Safe</span></span><span class="size">2.1 GB</span>
+            <span class="how">recreated automatically</span>
+          </label></li>
+          <li><label class="row">
+            <input type="checkbox" data-gb="1.9" checked />
             <span class="name">node_modules <span class="label safe">Safe</span></span><span class="size">1.9 GB</span>
-            <span class="how">pnpm install</span>
+            <span class="how">npm ci</span>
           </label></li>
           <li><label class="row">
-            <input type="checkbox" data-gb="0.65" checked />
-            <span class="name">.next <span class="label safe">Safe</span></span><span class="size">648 MB</span>
-            <span class="how">pnpm build</span>
-          </label></li>
-          <li><label class="row">
-            <input type="checkbox" data-gb="0.31" />
-            <span class="name">dist <span class="label review">Review</span></span><span class="size">312 MB</span>
-            <span class="how">committed to git: git restore dist</span>
+            <input type="checkbox" data-gb="6.0" />
+            <span class="name">ubuntu-24.04.iso <span class="label review">Review</span></span><span class="size">6.0 GB</span>
+            <span class="how">your file, so look first</span>
           </label></li>
           <li><div class="row locked">
             <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="4" y="9.5" width="14" height="10" rx="3.5" fill="#c81e1e"/><path d="M7.5 9.5V7a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#c81e1e" stroke-width="2" stroke-linecap="round"/></svg>
-            <span class="name">src, .git <span class="label keep">Do not delete</span></span><span class="size">310 MB</span>
+            <span class="name">Windows, Documents <span class="label keep">Do not delete</span></span>
           </div></li>
         </ul>
         <div class="gauge">
           <div class="gauge-top">
             <span>Free after delete</span>
-            <output id="free-after" for="demo">41.6 GB</output>
+            <output id="free-after" for="demo">50.9 GB</output>
           </div>
           <div class="bar" aria-hidden="true">
-            <i class="used" id="bar-used" style="width: 86%"></i>
-            <i class="going" id="bar-going" style="width: 5%"></i>
+            <i class="used" id="bar-used" style="width: 81.8%"></i>
+            <i class="going" id="bar-going" style="width: 10%"></i>
             <i class="free"></i>
           </div>
           <div class="dim">C:\ 476 GB</div>
@@ -465,7 +475,7 @@
     <section id="how" style="padding-top: 0">
       <div class="head">
         <h2>How a folder earns its label.</h2>
-        <p>No guessing from folder names alone. Each candidate is checked against the project around it before you ever see it.</p>
+        <p>No guessing from folder names alone. Each candidate is checked against what is around it before you ever see it.</p>
       </div>
       <ol class="flow">
         <li>
@@ -496,9 +506,101 @@
       </ol>
     </section>
 
+    <section id="cleans" style="padding-top: 0">
+      <div class="head">
+        <h2>Clean caches, Windows Update files and logs.</h2>
+        <p>Temp files, browser caches, update downloads, log files and crash dumps from every corner of the drive, grouped by category with their total size.</p>
+      </div>
+      <div class="bento">
+        <article class="tile s7">
+          <div class="art">
+            <ul class="chips" aria-label="Package manager caches. Most are Safe; pnpm, Gradle, Maven, NuGet packages and Playwright browsers are Review.">
+              <li>npm</li><li>Yarn</li><li>Bun</li><li>pip</li><li>uv</li><li>Cargo</li><li>Go</li><li>NuGet cache</li><li>node-gyp</li><li>Electron</li><li>Android SDK</li>
+              <li class="look">pnpm store</li><li class="look">Gradle</li><li class="look">Maven</li><li class="look">NuGet packages</li><li class="look">Playwright</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Package manager caches</h3>
+            <p>These grow quietly across every project you touch. Packages download again the next time a project needs them. Green is Safe; amber is Review, because the next build has more to fetch.</p>
+          </div>
+        </article>
+
+        <article class="tile s5">
+          <div class="art">
+            <svg viewBox="0 0 360 150" role="img" aria-label="A Windows logo tile with a dashed line leading to a stack of downloaded update packages.">
+              <rect x="8" y="24" width="102" height="102" rx="28" fill="#0369a1"/>
+              <g fill="#fff"><rect x="33" y="49" width="24" height="24" rx="5"/><rect x="61" y="49" width="24" height="24" rx="5"/><rect x="33" y="77" width="24" height="24" rx="5"/><rect x="61" y="77" width="24" height="24" rx="5"/></g>
+              <path d="M122 75h74" fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"/>
+              <path d="m190 63 14 12-14 12" fill="none" stroke="#0369a1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="224" y="18" width="128" height="32" rx="12" fill="#cbd5e1"/>
+              <rect x="224" y="59" width="128" height="32" rx="12" fill="#94a3b8"/>
+              <rect x="224" y="100" width="128" height="32" rx="12" fill="#7dd3fc"/>
+              <g fill="#0f172a" font-family="Geist Mono, monospace" font-size="13" font-weight="500"><text x="240" y="39">.cab</text><text x="240" y="80">.msu</text><text x="240" y="121">.psf</text></g>
+            </svg>
+          </div>
+          <div>
+            <h3>Windows Update cache</h3>
+            <p>Downloaded updates in <code>SoftwareDistribution\Download</code> and the Delivery Optimization cache. Windows fetches again whatever it still needs.</p>
+          </div>
+        </article>
+
+        <article class="tile s5">
+          <div class="art">
+            <svg viewBox="0 0 360 170" role="img" aria-label="A browser window whose cached blocks are cleared while a locked row of passwords and cookies stays in place.">
+              <rect x="20" y="6" width="320" height="158" rx="22" fill="#cbd5e1"/>
+              <circle cx="46" cy="30" r="7" fill="#0369a1"/><circle cx="68" cy="30" r="7" fill="#7dd3fc"/><circle cx="90" cy="30" r="7" fill="#94a3b8"/>
+              <rect x="116" y="20" width="204" height="20" rx="10" fill="#fff"/>
+              <rect x="38" y="54" width="284" height="96" rx="14" fill="#fff"/>
+              <g fill="#e2e8f0"><rect x="52" y="66" width="60" height="30" rx="8"/><rect x="120" y="66" width="60" height="30" rx="8"/><rect x="188" y="66" width="60" height="30" rx="8"/><rect x="256" y="66" width="52" height="30" rx="8"/></g>
+              <rect x="52" y="106" width="256" height="32" rx="10" fill="#0369a1"/>
+              <rect x="66" y="119" width="14" height="11" rx="3" fill="#fff"/><path d="M69 119v-3a4 4 0 0 1 8 0v3" fill="none" stroke="#fff" stroke-width="2"/>
+              <text x="90" y="127" font-family="Geist Mono, monospace" font-size="13" font-weight="500" fill="#fff">passwords, cookies, history</text>
+            </svg>
+          </div>
+          <div>
+            <h3>Browser and app caches</h3>
+            <p>Chrome, Edge, Brave, Firefox and Opera, plus VS Code, Cursor, Discord, Slack, Teams, Spotify and JetBrains IDEs. Passwords, history and cookies are not touched.</p>
+          </div>
+        </article>
+
+        <article class="tile dark s7">
+          <div class="art">
+            <div class="logs" role="img" aria-label="Log file examples: an old log is Safe, a log written this week is Review, a database journal is skipped, and a crash dump is Safe.">
+              <div><span>build-2024.log</span><span class="why">older than 7 days</span><span class="label safe">Safe</span></div>
+              <div><span>server.log</span><span class="why">written this week</span><span class="label review">Review</span></div>
+              <div><span>leveldb\000003.log</span><span class="why">a database journal</span><span class="label skip">Skipped</span></div>
+              <div><span>crash.dmp</span><span class="why">only useful for debugging</span><span class="label safe">Safe</span></div>
+            </div>
+          </div>
+          <div>
+            <h3>Log files and crash dumps</h3>
+            <p>Finds <code>*.log</code> files outside system folders and tells real logs from database journals that only look like logs, because deleting those corrupts data. Also blue-screen dumps and Windows error reports.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="also">
+        <div><h3>Temp files</h3><p>Yours and Windows'. Only the contents go, and files still in use are skipped.</p><span class="label safe">Safe</span></div>
+        <div><h3>GPU and thumbnail caches</h3><p>DirectX, NVIDIA and AMD shader caches, and Explorer's thumbnails and icons. Rebuilt on their own.</p><span class="label safe">Safe</span></div>
+        <div><h3>App update leftovers</h3><p>Older app versions kept after an update, downloaded installers and extracted NVIDIA and AMD drivers.</p><span class="label safe">Safe</span></div>
+        <div><h3>Recycle Bin</h3><p>Files you already deleted, still taking up the space.</p><span class="label safe">Safe</span></div>
+        <div><h3>Windows logs</h3><p>Setup and servicing logs, only useful when troubleshooting Windows.</p><span class="label review">Review</span></div>
+        <div><h3>Previous Windows</h3><p><code>Windows.old</code> and upgrade files. Deleting them removes the option to roll back.</p><span class="label review">Review</span></div>
+      </div>
+
+      <div class="fullclean">
+        <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4v5M15 21v5M4 15h5M21 15h5M7.5 7.5l3.5 3.5M19 19l3.5 3.5M22.5 7.5 19 11M11 19l-3.5 3.5"/></svg></div>
+        <div>
+          <h3>Or do it all with Full clean</h3>
+          <p>Previews everything Safe plus Windows rollback leftovers, then runs it or just ticks it for you to review. Optional extras: DISM component store cleanup, and turning off hibernation to remove <code>hiberfil.sys</code>.</p>
+        </div>
+      </div>
+    </section>
+
     <section id="features" style="padding-top: 0">
       <div class="head">
-        <h2>Delete node_modules and build output, safely.</h2>
+        <h2>Write code? It knows your projects too.</h2>
+        <p>Delete node_modules and build output safely, and find the gigabytes your projects can rebuild.</p>
       </div>
       <div class="bento">
         <article class="tile s7">
@@ -541,19 +643,19 @@
         <article class="tile s5">
           <div class="art">
             <svg viewBox="0 0 440 220" role="img" aria-label="Treemap drawing of folders sized by how much space they take.">
-              <rect x="0" y="0" width="186" height="220" rx="18" fill="#4f46e5"/>
-              <rect x="194" y="0" width="134" height="124" rx="18" fill="#818cf8"/>
-              <rect x="336" y="0" width="104" height="124" rx="18" fill="#a5b4fc"/>
-              <rect x="194" y="132" width="88" height="88" rx="18" fill="#a5b4fc"/>
-              <rect x="290" y="132" width="72" height="88" rx="18" fill="#c7d2fe"/>
-              <rect x="370" y="132" width="70" height="40" rx="12" fill="#c7d2fe"/>
-              <rect x="370" y="180" width="70" height="40" rx="12" fill="#e0e7ff"/>
+              <rect x="0" y="0" width="186" height="220" rx="18" fill="#0369a1"/>
+              <rect x="194" y="0" width="134" height="124" rx="18" fill="#7dd3fc"/>
+              <rect x="336" y="0" width="104" height="124" rx="18" fill="#94a3b8"/>
+              <rect x="194" y="132" width="88" height="88" rx="18" fill="#94a3b8"/>
+              <rect x="290" y="132" width="72" height="88" rx="18" fill="#cbd5e1"/>
+              <rect x="370" y="132" width="70" height="40" rx="12" fill="#cbd5e1"/>
+              <rect x="370" y="180" width="70" height="40" rx="12" fill="#e2e8f0"/>
               <g font-family="Geist Mono, monospace" font-size="14" font-weight="500">
-                <text x="18" y="34" fill="#fff">AppData</text><text x="18" y="54" fill="#e0e7ff" font-size="12">74 GB</text>
-                <text x="210" y="34" fill="#15163a">Videos</text><text x="210" y="54" fill="#15163a" font-size="12">52 GB</text>
-                <text x="350" y="34" fill="#15163a">backups</text>
-                <text x="208" y="162" fill="#15163a">code</text>
-                <text x="304" y="162" fill="#15163a">.cargo</text>
+                <text x="18" y="34" fill="#fff">AppData</text><text x="18" y="54" fill="#e2e8f0" font-size="12">74 GB</text>
+                <text x="210" y="34" fill="#0f172a">Videos</text><text x="210" y="54" fill="#0f172a" font-size="12">52 GB</text>
+                <text x="350" y="34" fill="#0f172a">backups</text>
+                <text x="208" y="162" fill="#0f172a">code</text>
+                <text x="304" y="162" fill="#0f172a">.cargo</text>
               </g>
             </svg>
           </div>
@@ -566,9 +668,9 @@
         <article class="tile s3">
           <div class="art">
             <svg viewBox="0 0 240 180" role="img" aria-label="Three file icons of decreasing size, two labelled vhdx and iso.">
-              <path d="M10 22a14 14 0 0 1 14-14h58l38 38v112a14 14 0 0 1-14 14H24a14 14 0 0 1-14-14Z" fill="#4f46e5"/><path d="M82 8v24a14 14 0 0 0 14 14h24Z" fill="#818cf8"/>
-              <path d="M132 70a10 10 0 0 1 10-10h34l24 24v76a12 12 0 0 1-12 12h-44a12 12 0 0 1-12-12Z" fill="#818cf8"/><path d="M176 60v14a10 10 0 0 0 10 10h14Z" fill="#c7d2fe"/>
-              <path d="M208 122a7 7 0 0 1 7-7h9l14 14v36a7 7 0 0 1-7 7h-16a7 7 0 0 1-7-7Z" fill="#c7d2fe"/>
+              <path d="M10 22a14 14 0 0 1 14-14h58l38 38v112a14 14 0 0 1-14 14H24a14 14 0 0 1-14-14Z" fill="#0369a1"/><path d="M82 8v24a14 14 0 0 0 14 14h24Z" fill="#7dd3fc"/>
+              <path d="M132 70a10 10 0 0 1 10-10h34l24 24v76a12 12 0 0 1-12 12h-44a12 12 0 0 1-12-12Z" fill="#7dd3fc"/><path d="M176 60v14a10 10 0 0 0 10 10h14Z" fill="#cbd5e1"/>
+              <path d="M208 122a7 7 0 0 1 7-7h9l14 14v36a7 7 0 0 1-7 7h-16a7 7 0 0 1-7-7Z" fill="#cbd5e1"/>
               <g font-family="Geist Mono, monospace" font-weight="600" fill="#fff"><text x="30" y="118" font-size="20">.vhdx</text><text x="143" y="130" font-size="15">.iso</text></g>
             </svg>
           </div>
@@ -581,10 +683,10 @@
         <article class="tile s4">
           <div class="art">
             <svg viewBox="0 0 320 180" role="img" aria-label="An app tile with dashed lines leading to the folders it leaves behind.">
-              <rect x="6" y="46" width="88" height="88" rx="24" fill="#4f46e5"/>
+              <rect x="6" y="46" width="88" height="88" rx="24" fill="#0369a1"/>
               <path d="M34 90h32M50 74v32" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
-              <g fill="none" stroke="#818cf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"><path d="M100 76c40 0 44-46 86-46"/><path d="M100 90h86"/><path d="M100 104c40 0 44 46 86 46"/></g>
-              <g fill="#a5b4fc"><path d="M196 18a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/><path d="M196 78a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/><path d="M196 138a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/></g>
+              <g fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"><path d="M100 76c40 0 44-46 86-46"/><path d="M100 90h86"/><path d="M100 104c40 0 44 46 86 46"/></g>
+              <g fill="#94a3b8"><path d="M196 18a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/><path d="M196 78a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/><path d="M196 138a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/></g>
             </svg>
           </div>
           <div>
@@ -596,19 +698,19 @@
         <article class="tile s7">
           <div class="art">
             <svg viewBox="0 0 640 170" role="img" aria-label="A Windows taskbar tray with the Freespace icon, a tooltip reading 12.4 GB can be cleaned, and a clock dial.">
-              <rect x="200" y="6" width="238" height="48" rx="16" fill="#15163a"/>
-              <path d="M362 54h20l-10 11Z" fill="#15163a"/>
+              <rect x="200" y="6" width="238" height="48" rx="16" fill="#0f172a"/>
+              <path d="M362 54h20l-10 11Z" fill="#0f172a"/>
               <text x="319" y="36" text-anchor="middle" font-family="Geist Mono, monospace" font-size="15" font-weight="500" fill="#fff">12.4 GB can be cleaned</text>
-              <rect x="130" y="82" width="430" height="72" rx="24" fill="#e0e7ff"/>
-              <rect x="156" y="102" width="32" height="32" rx="10" fill="#c7d2fe"/>
-              <rect x="202" y="102" width="32" height="32" rx="10" fill="#c7d2fe"/>
-              <rect x="248" y="102" width="32" height="32" rx="10" fill="#c7d2fe"/>
-              <rect x="350" y="96" width="44" height="44" rx="13" fill="#4f46e5"/>
+              <rect x="130" y="82" width="430" height="72" rx="24" fill="#e2e8f0"/>
+              <rect x="156" y="102" width="32" height="32" rx="10" fill="#cbd5e1"/>
+              <rect x="202" y="102" width="32" height="32" rx="10" fill="#cbd5e1"/>
+              <rect x="248" y="102" width="32" height="32" rx="10" fill="#cbd5e1"/>
+              <rect x="350" y="96" width="44" height="44" rx="13" fill="#0369a1"/>
               <g fill="#fff"><rect x="360" y="106" width="10" height="10" rx="2.5"/><rect x="374" y="106" width="10" height="10" rx="2.5"/><rect x="360" y="120" width="10" height="10" rx="2.5"/><rect x="375" y="121" width="8" height="8" rx="2" fill="none" stroke="#fff" stroke-width="2"/></g>
-              <text x="430" y="124" font-family="Geist Mono, monospace" font-size="15" font-weight="500" fill="#15163a">09:41</text>
-              <circle cx="60" cy="112" r="46" fill="#c7d2fe"/>
-              <circle cx="60" cy="112" r="46" fill="none" stroke="#4f46e5" stroke-width="8"/>
-              <path d="M60 88v24l16 10" fill="none" stroke="#15163a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="430" y="124" font-family="Geist Mono, monospace" font-size="15" font-weight="500" fill="#0f172a">09:41</text>
+              <circle cx="60" cy="112" r="46" fill="#cbd5e1"/>
+              <circle cx="60" cy="112" r="46" fill="none" stroke="#0369a1" stroke-width="8"/>
+              <path d="M60 88v24l16 10" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <div>
@@ -620,11 +722,11 @@
         <article class="tile s5">
           <div class="art">
             <svg viewBox="0 0 360 170" role="img" aria-label="A recycle bin with an arrow curving back out of it.">
-              <rect x="112" y="46" width="136" height="16" rx="8" fill="#4f46e5"/>
-              <rect x="158" y="30" width="44" height="20" rx="8" fill="#4f46e5"/>
-              <path d="M124 70h112l-9 82a14 14 0 0 1-14 12h-66a14 14 0 0 1-14-12Z" fill="#818cf8"/>
-              <g stroke="#e0e7ff" stroke-width="6" stroke-linecap="round"><path d="M158 88l3 56M202 88l-3 56"/></g>
-              <g fill="none" stroke="#4f46e5" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M258 118c44 0 66-22 66-48s-22-46-52-46h-16"/><path d="m272 8-18 16 18 16"/></g>
+              <rect x="112" y="46" width="136" height="16" rx="8" fill="#0369a1"/>
+              <rect x="158" y="30" width="44" height="20" rx="8" fill="#0369a1"/>
+              <path d="M124 70h112l-9 82a14 14 0 0 1-14 12h-66a14 14 0 0 1-14-12Z" fill="#7dd3fc"/>
+              <g stroke="#e2e8f0" stroke-width="6" stroke-linecap="round"><path d="M158 88l3 56M202 88l-3 56"/></g>
+              <g fill="none" stroke="#0369a1" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M258 118c44 0 66-22 66-48s-22-46-52-46h-16"/><path d="m272 8-18 16 18 16"/></g>
             </svg>
           </div>
           <div>
@@ -632,97 +734,6 @@
             <p>Send deletions to the Recycle Bin instead, and get a report of what was removed, what was skipped, and how much came back.</p>
           </div>
         </article>
-      </div>
-    </section>
-
-    <section id="cleans" style="padding-top: 0">
-      <div class="head">
-        <h2>Clean caches, Windows Update files and logs.</h2>
-        <p>Temp files, browser caches, update downloads, log files and crash dumps from every corner of the drive, grouped by category with their total size.</p>
-      </div>
-      <div class="bento">
-        <article class="tile s7">
-          <div class="art">
-            <ul class="chips" aria-label="Package manager caches. Most are Safe; pnpm, Gradle, Maven, NuGet packages and Playwright browsers are Review.">
-              <li>npm</li><li>Yarn</li><li>Bun</li><li>pip</li><li>uv</li><li>Cargo</li><li>Go</li><li>NuGet cache</li><li>node-gyp</li><li>Electron</li><li>Android SDK</li>
-              <li class="look">pnpm store</li><li class="look">Gradle</li><li class="look">Maven</li><li class="look">NuGet packages</li><li class="look">Playwright</li>
-            </ul>
-          </div>
-          <div>
-            <h3>Package manager caches</h3>
-            <p>These grow quietly across every project you touch. Packages download again the next time a project needs them. Green is Safe; amber is Review, because the next build has more to fetch.</p>
-          </div>
-        </article>
-
-        <article class="tile s5">
-          <div class="art">
-            <svg viewBox="0 0 360 150" role="img" aria-label="A Windows logo tile with a dashed line leading to a stack of downloaded update packages.">
-              <rect x="8" y="24" width="102" height="102" rx="28" fill="#4f46e5"/>
-              <g fill="#fff"><rect x="33" y="49" width="24" height="24" rx="5"/><rect x="61" y="49" width="24" height="24" rx="5"/><rect x="33" y="77" width="24" height="24" rx="5"/><rect x="61" y="77" width="24" height="24" rx="5"/></g>
-              <path d="M122 75h74" fill="none" stroke="#818cf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"/>
-              <path d="m190 63 14 12-14 12" fill="none" stroke="#4f46e5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-              <rect x="224" y="18" width="128" height="32" rx="12" fill="#c7d2fe"/>
-              <rect x="224" y="59" width="128" height="32" rx="12" fill="#a5b4fc"/>
-              <rect x="224" y="100" width="128" height="32" rx="12" fill="#818cf8"/>
-              <g fill="#15163a" font-family="Geist Mono, monospace" font-size="13" font-weight="500"><text x="240" y="39">.cab</text><text x="240" y="80">.msu</text><text x="240" y="121">.psf</text></g>
-            </svg>
-          </div>
-          <div>
-            <h3>Windows Update cache</h3>
-            <p>Downloaded updates in <code>SoftwareDistribution\Download</code> and the Delivery Optimization cache. Windows fetches again whatever it still needs.</p>
-          </div>
-        </article>
-
-        <article class="tile s5">
-          <div class="art">
-            <svg viewBox="0 0 360 170" role="img" aria-label="A browser window whose cached blocks are cleared while a locked row of passwords and cookies stays in place.">
-              <rect x="20" y="6" width="320" height="158" rx="22" fill="#c7d2fe"/>
-              <circle cx="46" cy="30" r="7" fill="#4f46e5"/><circle cx="68" cy="30" r="7" fill="#818cf8"/><circle cx="90" cy="30" r="7" fill="#a5b4fc"/>
-              <rect x="116" y="20" width="204" height="20" rx="10" fill="#fff"/>
-              <rect x="38" y="54" width="284" height="96" rx="14" fill="#fff"/>
-              <g fill="#e0e7ff"><rect x="52" y="66" width="60" height="30" rx="8"/><rect x="120" y="66" width="60" height="30" rx="8"/><rect x="188" y="66" width="60" height="30" rx="8"/><rect x="256" y="66" width="52" height="30" rx="8"/></g>
-              <rect x="52" y="106" width="256" height="32" rx="10" fill="#4f46e5"/>
-              <rect x="66" y="119" width="14" height="11" rx="3" fill="#fff"/><path d="M69 119v-3a4 4 0 0 1 8 0v3" fill="none" stroke="#fff" stroke-width="2"/>
-              <text x="90" y="127" font-family="Geist Mono, monospace" font-size="13" font-weight="500" fill="#fff">passwords, cookies, history</text>
-            </svg>
-          </div>
-          <div>
-            <h3>Browser and app caches</h3>
-            <p>Chrome, Edge, Brave, Firefox and Opera, plus VS Code, Cursor, Discord, Slack, Teams, Spotify and JetBrains IDEs. Passwords, history and cookies are not touched.</p>
-          </div>
-        </article>
-
-        <article class="tile dark s7">
-          <div class="art">
-            <div class="logs" role="img" aria-label="Log file examples: an old log is Safe, a log written this week is Review, a database journal is skipped, and a crash dump is Safe.">
-              <div><span>build-2024.log</span><span class="why">older than 7 days</span><span class="label safe">Safe</span></div>
-              <div><span>server.log</span><span class="why">written this week</span><span class="label review">Review</span></div>
-              <div><span>leveldb\000003.log</span><span class="why">a database journal</span><span class="label skip">Skipped</span></div>
-              <div><span>crash.dmp</span><span class="why">only useful for debugging</span><span class="label safe">Safe</span></div>
-            </div>
-          </div>
-          <div>
-            <h3>Log files and crash dumps</h3>
-            <p>Finds <code>*.log</code> files outside system folders and tells real logs from database journals that only look like logs, because deleting those corrupts data. Also blue-screen dumps and Windows error reports.</p>
-          </div>
-        </article>
-      </div>
-
-      <div class="also">
-        <div><h3>Temp files</h3><p>Yours and Windows'. Only the contents go, and files still in use are skipped.</p><span class="label safe">Safe</span></div>
-        <div><h3>GPU and thumbnail caches</h3><p>DirectX, NVIDIA and AMD shader caches, and Explorer's thumbnails and icons. Rebuilt on their own.</p><span class="label safe">Safe</span></div>
-        <div><h3>App update leftovers</h3><p>Older app versions kept after an update, downloaded installers and extracted NVIDIA and AMD drivers.</p><span class="label safe">Safe</span></div>
-        <div><h3>Recycle Bin</h3><p>Files you already deleted, still taking up the space.</p><span class="label safe">Safe</span></div>
-        <div><h3>Windows logs</h3><p>Setup and servicing logs, only useful when troubleshooting Windows.</p><span class="label review">Review</span></div>
-        <div><h3>Previous Windows</h3><p><code>Windows.old</code> and upgrade files. Deleting them removes the option to roll back.</p><span class="label review">Review</span></div>
-      </div>
-
-      <div class="fullclean">
-        <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4v5M15 21v5M4 15h5M21 15h5M7.5 7.5l3.5 3.5M19 19l3.5 3.5M22.5 7.5 19 11M11 19l-3.5 3.5"/></svg></div>
-        <div>
-          <h3>Or do it all with Full clean</h3>
-          <p>Previews everything Safe plus Windows rollback leftovers, then runs it or just ticks it for you to review. Optional extras: DISM component store cleanup, and turning off hibernation to remove <code>hiberfil.sys</code>.</p>
-        </div>
       </div>
     </section>
 
@@ -819,11 +830,11 @@
         </div>
       </div>
       <svg viewBox="0 0 420 210" aria-hidden="true">
-        <rect x="6" y="20" width="408" height="170" rx="28" fill="#3730a3"/>
+        <rect x="6" y="20" width="408" height="170" rx="28" fill="#075985"/>
         <rect x="34" y="48" width="352" height="30" rx="15" fill="#fff"/>
-        <rect x="34" y="48" width="120" height="30" rx="15" fill="#a5b4fc"/>
-        <g fill="#818cf8"><rect x="34" y="104" width="190" height="14" rx="7"/><rect x="34" y="132" width="130" height="14" rx="7"/></g>
-        <circle cx="352" cy="130" r="22" fill="#4f46e5"/><circle cx="352" cy="130" r="8" fill="#e0e7ff"/>
+        <rect x="34" y="48" width="120" height="30" rx="15" fill="#94a3b8"/>
+        <g fill="#7dd3fc"><rect x="34" y="104" width="190" height="14" rx="7"/><rect x="34" y="132" width="130" height="14" rx="7"/></g>
+        <circle cx="352" cy="130" r="22" fill="#0369a1"/><circle cx="352" cy="130" r="8" fill="#e2e8f0"/>
       </svg>
     </div>
 
@@ -837,8 +848,8 @@
           <h3>product</h3>
           <ul>
             <li><a class="dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download</a></li>
-            <li><a href="#features">Features</a></li>
             <li><a href="#cleans">What it cleans</a></li>
+            <li><a href="#features">For developers</a></li>
             <li><a href="#specs">Specs</a></li>
             <li><a href="#faq">Questions</a></li>
           </ul>
@@ -864,7 +875,7 @@
       <div class="foot-end">
         <span>&copy; <span id="year">2026</span> <a href="https://github.com/ezzdin-atef">Ezzdin Atef</a>. Released under the MIT license.</span>
         <span class="made">Made with
-          <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="love"><path d="M12 21s-8.5-5.2-10-10.3C.9 6.8 3.4 3.5 7 3.5c2 0 3.8 1 5 2.8 1.2-1.8 3-2.8 5-2.8 3.6 0 6.1 3.3 5 7.2C20.5 15.8 12 21 12 21Z" fill="#4f46e5"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="love"><path d="M12 21s-8.5-5.2-10-10.3C.9 6.8 3.4 3.5 7 3.5c2 0 3.8 1 5 2.8 1.2-1.8 3-2.8 5-2.8 3.6 0 6.1 3.3 5 7.2C20.5 15.8 12 21 12 21Z" fill="#0369a1"/></svg>
           and Rust, by <a href="https://github.com/ezzdin-atef">Ezzdin Atef</a></span>
       </div>
     </footer>
@@ -901,9 +912,9 @@
     function updateDemo() {
       const going = [...demo.querySelectorAll("input:checked")].reduce((n, i) => n + Number(i.dataset.gb), 0);
       document.getElementById("free-after").textContent = `${(FREE_NOW + going).toFixed(1)} GB`;
-      // Drawn at ten times scale: a few gigabytes would be a sliver on a 476 GB bar.
-      document.getElementById("bar-going").style.width = pct(going * 10);
-      document.getElementById("bar-used").style.width = pct(TOTAL - FREE_NOW - going * 10);
+      // Drawn at four times scale: a few gigabytes would be a sliver on a 476 GB bar.
+      document.getElementById("bar-going").style.width = pct(going * 4);
+      document.getElementById("bar-used").style.width = pct(TOTAL - FREE_NOW - going * 4);
     }
     demo.addEventListener("change", updateDemo);
     demo.addEventListener("submit", (e) => e.preventDefault());

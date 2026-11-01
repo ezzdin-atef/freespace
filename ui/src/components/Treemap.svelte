@@ -9,8 +9,8 @@
     onpick,
   }: { items: { name: string; size: number }[]; height?: number; onpick?: (i: number) => void } = $props();
 
-  // Soft indigo/blue/cyan tints.
-  const TINTS = ["#c7d2fe", "#bfdbfe", "#ddd6fe", "#a5f3fc", "#e0e7ff", "#dbeafe", "#ede9fe", "#cffafe"];
+  // Soft blue and slate tints.
+  const TINTS = ["#bae6fd", "#cbd5e1", "#e0f2fe", "#e2e8f0", "#7dd3fc", "#f1f5f9", "#bfdbfe", "#dbeafe"];
   const GAP = 1.5;
 
   let width = $state(0);

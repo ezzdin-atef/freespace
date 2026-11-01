@@ -214,7 +214,7 @@
     background: var(--row-hover);
   }
   .item.checked {
-    background: #f5f7ff;
+    background: #f0f9ff;
   }
   .item.focus {
     background: var(--acc-bg);

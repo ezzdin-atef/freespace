@@ -79,6 +79,7 @@ jobs:
           releaseDraft: false
           prerelease: ${{ contains(env.TAG, '-') }}
           includeUpdaterJson: true
+          tauriScript: npm run tauri
 
       # A copy with a fixed name, so .../releases/latest/download/Freespace-setup.exe always points at the newest
       # installer (the landing page and README link to it).

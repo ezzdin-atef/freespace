@@ -2,7 +2,7 @@
 // http://localhost:5173). Never bundled into the app: main.ts imports it only in dev mode outside Tauri.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AppRow, CleanRequest, FindingRow, Group, LeftoverRow, Plan, ProjectRow, Report, ResetPick, SafetyKey, ScanSummary, UsageLevel, UsageRow } from "../lib/api";
+import type { AppRow, CleanRequest, FindingRow, Group, KindKey, LeftoverRow, Plan, ProjectRow, Report, ResetPick, SafetyKey, ScanSummary, UsageLevel, UsageRow } from "../lib/api";
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
@@ -12,16 +12,140 @@ const DRIVES = [
   { root: "G:\\", kind: "Local", total: 200 * GB, free: 39.4 * GB },
 ];
 
-const CATEGORIES: [string, string, string, string, SafetyKey][] = [
-  ["BuildArtifacts", "Build output & dev caches", "Rust target, .NET bin/obj, Next.js .next... Rebuilt on the next build.", "Rebuilt by your next build.", "safe"],
-  ["NodeModules", "node_modules", "JavaScript dependencies of your projects.", "Run npm install in the project.", "safe"],
-  ["DevCache", "Package manager caches", "npm, pip, cargo, NuGet... downloaded again when needed.", "Downloaded again when needed.", "safe"],
-  ["BrowserCache", "Browser caches", "Chrome / Edge / Firefox caches. Close the browser first.", "Nothing to do - recreated automatically.", "safe"],
-  ["LogFiles", "Log files", "*.log files outside system folders.", "Not needed - nothing to restore.", "review"],
-  ["CrashDumps", "Crash dumps & error reports", "Memory dumps from crashed apps.", "Not needed - nothing to restore.", "safe"],
-  ["UserTemp", "User temp files", "Temporary files left by apps and installers.", "Not needed - nothing to restore.", "safe"],
-  ["LargeFiles", "Large files", "Files of 512 MB or more. Review each one.", "Only from your own backup.", "review"],
+const CATEGORIES: [string, string, string, string][] = [
+  ["BuildArtifacts", "Build output & dev caches", "Rust target, .NET bin/obj, Next.js .next... Rebuilt on the next build.", "Rebuilt by your next build."],
+  ["NodeModules", "node_modules", "JavaScript dependencies of your projects.", "Run npm install in the project."],
+  ["DevCache", "Package manager caches", "npm, pip, cargo, NuGet... downloaded again when needed.", "Downloaded again when needed."],
+  ["PythonEnv", "Python virtual environments", "Project virtual environments.", "python -m venv .venv, then pip install -r requirements.txt."],
+  ["WindowsUpdate", "Windows Update cache", "Downloaded update packages. Windows re-downloads what it still needs.", "Windows downloads it again if it still needs it."],
+  ["BrowserCache", "Browser caches", "Chrome / Edge / Firefox caches. Close the browser first.", "Nothing to do - recreated automatically."],
+  ["UserTemp", "User temp files", "Temporary files left by apps and installers.", "Not needed - nothing to restore."],
+  ["CrashDumps", "Crash dumps & error reports", "Memory dumps from crashed apps.", "Not needed - nothing to restore."],
+  ["LogFiles", "Log files", "*.log files outside system folders.", "Not needed - nothing to restore."],
+  ["LargeFiles", "Large files", "Files of 512 MB or more. Review each one.", "Only from your own backup."],
 ];
+
+const HOME = "C:\\Users\\demo";
+const CODE = `${HOME}\\code`;
+const COMMITTED = "Committed to git - it will show up as deleted files until you restore or commit it";
+const NO_LOCK = "No lockfile - a reinstall may pick different package versions";
+const PNPM = "Restore with pnpm install - exact versions are pinned in pnpm-lock.yaml";
+const NPM = "Restore with npm ci - exact versions are pinned in package-lock.json";
+const REBUILT = "Rebuilt by your next build.";
+
+/** rel, category, size in MB, safety, note, how to get it back. */
+type DemoArtifact = [string, string, number, SafetyKey, string, string];
+interface DemoProject {
+  name: string;
+  kinds: string[];
+  days: number;
+  branch: string | null;
+  ownMb: number;
+  files: number;
+  artifacts: DemoArtifact[];
+}
+
+const PROJECTS: DemoProject[] = [
+  { name: "billing-api", kinds: ["Rust"], days: 3, branch: "main", ownMb: 96, files: 84_210, artifacts: [
+    ["target", "BuildArtifacts", 6840, "safe", "Rust build output - rebuilt by cargo build", "cargo build"],
+  ] },
+  { name: "storefront", kinds: ["Node.js"], days: 1, branch: "main", ownMb: 214, files: 171_340, artifacts: [
+    ["node_modules", "NodeModules", 1910, "safe", PNPM, "pnpm install"],
+    [".next", "BuildArtifacts", 648, "safe", "JS framework cache - rebuilt on next dev / build", "pnpm build"],
+    ["playwright-report", "BuildArtifacts", 122, "safe", "Test run output - recreated by the next run", "pnpm test:e2e"],
+  ] },
+  { name: "ml-lab", kinds: ["Python"], days: 402, branch: "main", ownMb: 420, files: 96_020, artifacts: [
+    [".venv", "PythonEnv", 4310, "review", "Virtual env - recreate it and reinstall packages", "python -m venv .venv, then pip install -r requirements.txt"],
+    ["__pycache__", "BuildArtifacts", 38, "safe", "Python cache - recreated automatically", "Recreated automatically."],
+  ] },
+  { name: "mobile-app", kinds: ["Flutter", "Node.js"], days: 214, branch: "release/2.4", ownMb: 182, files: 142_800, artifacts: [
+    ["build", "BuildArtifacts", 2240, "safe", "Build output - rebuilt on next build", "flutter build"],
+    ["node_modules", "NodeModules", 930, "safe", NPM, "npm ci"],
+    [".dart_tool", "BuildArtifacts", 246, "safe", "Dart / Flutter tool cache", "flutter pub get"],
+  ] },
+  { name: "dashboard", kinds: ["Node.js"], days: 12, branch: "main", ownMb: 148, files: 203_500, artifacts: [
+    ["node_modules", "NodeModules", 1420, "safe", PNPM, "pnpm install"],
+    [".claude\\worktrees\\agent-1\\node_modules", "NodeModules", 1380, "safe", PNPM, "pnpm install"],
+    [".pnpm-store", "BuildArtifacts", 980, "safe", "Project pnpm store - packages download again on the next install", "pnpm install"],
+  ] },
+  { name: "game-tools", kinds: [".NET"], days: 96, branch: "main", ownMb: 310, files: 31_700, artifacts: [
+    ["bin", "BuildArtifacts", 1120, "safe", ".NET build output - rebuilt by dotnet build", "dotnet build"],
+    [".vs", "BuildArtifacts", 424, "safe", "Visual Studio cache - recreated on next open", "Recreated on next open."],
+    ["obj", "BuildArtifacts", 382, "safe", ".NET build output - rebuilt by dotnet build", "dotnet build"],
+  ] },
+  { name: "old-portfolio", kinds: ["Node.js"], days: 811, branch: null, ownMb: 64, files: 58_900, artifacts: [
+    ["node_modules", "NodeModules", 1240, "review", NO_LOCK, "npm install"],
+  ] },
+  { name: "docs-site", kinds: ["Node.js"], days: 241, branch: "feature/search-box", ownMb: 88, files: 64_300, artifacts: [
+    ["node_modules", "NodeModules", 1640, "safe", PNPM, "pnpm install"],
+    ["dist", "BuildArtifacts", 312, "review", COMMITTED, "git restore dist"],
+    [".astro", "BuildArtifacts", 96, "safe", "JS framework cache - rebuilt on next dev / build", "pnpm build"],
+  ] },
+];
+
+/** category, path, size in MB, files, safety, note, kind, mode. */
+const OTHER_FINDINGS: [string, string, number, number, SafetyKey, string, KindKey, "contents" | "whole"][] = [
+  ["DevCache", `${HOME}\\AppData\\Local\\npm-cache`, 4210, 182_400, "safe", "npm cache", "dir", "contents"],
+  ["DevCache", `${HOME}\\.cargo\\registry\\src`, 2760, 241_000, "safe", "Cargo extracted crate sources", "dir", "contents"],
+  ["DevCache", `${HOME}\\.gradle\\caches`, 3180, 64_200, "review", "Gradle caches - next build downloads again", "dir", "contents"],
+  ["DevCache", `${HOME}\\.nuget\\packages`, 2340, 92_700, "review", "NuGet packages - restored by dotnet restore", "dir", "contents"],
+  ["DevCache", `${HOME}\\AppData\\Local\\pip\\cache`, 1120, 9_600, "safe", "pip cache", "dir", "contents"],
+  ["WindowsUpdate", "C:\\Windows\\SoftwareDistribution\\Download", 5120, 1_840, "safe", "Downloaded Windows updates", "dir", "contents"],
+  ["BrowserCache", `${HOME}\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache`, 1460, 22_100, "safe", "Chrome cache", "dir", "contents"],
+  ["BrowserCache", `${HOME}\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Cache`, 720, 11_300, "safe", "Edge cache", "dir", "contents"],
+  ["UserTemp", `${HOME}\\AppData\\Local\\Temp`, 2930, 38_400, "safe", "Temp folder (contents only)", "dir", "contents"],
+  ["CrashDumps", `${HOME}\\AppData\\Local\\CrashDumps`, 860, 14, "safe", "App crash dumps", "dir", "contents"],
+  ["LogFiles", `${CODE}\\billing-api\\logs\\server.log`, 410, 1, "review", "Written in the last 7 days - the app may still use it", "file", "whole"],
+  ["LargeFiles", `${HOME}\\AppData\\Local\\Docker\\wsl\\disk\\docker_data.vhdx`, 41_300, 1, "review", "Virtual disk (WSL / Docker / VM) - deleting it destroys that machine's data", "file", "whole"],
+  ["LargeFiles", `${HOME}\\Downloads\\ubuntu-24.04-desktop-amd64.iso`, 6010, 1, "review", "Disk image - safe to delete if you no longer need it", "file", "whole"],
+  ["LargeFiles", `${HOME}\\Videos\\conference-talk-final.mp4`, 3640, 1, "review", "Video - your personal data", "file", "whole"],
+  ["LargeFiles", `${CODE}\\ml-lab\\data\\embeddings-2024.zip`, 2210, 1, "review", "Archive - check whether you still need it", "file", "whole"],
+  ["LargeFiles", `${CODE}\\storefront\\.git\\objects\\pack\\pack-28bb02ec.pack`, 1180, 1, "protected", "Git repository data - deleting it loses history", "file", "whole"],
+  ["LargeFiles", "C:\\pagefile.sys", 16_384, 1, "protected", "Windows virtual memory - managed by Windows", "file", "whole"],
+];
+
+function makeFindings(): FindingRow[] {
+  const rows: FindingRow[] = [];
+  for (const p of PROJECTS) {
+    for (const [rel, category, mb, safety, note] of p.artifacts) {
+      const path = `${CODE}\\${p.name}\\${rel}`;
+      rows.push({ id: rows.length, category, path, name: rel.split("\\").at(-1)!, size: mb * MB, files: Math.round((mb * MB) / 28_000), safety, note, kind: "dir", mode: "whole" });
+    }
+  }
+  for (const [category, path, mb, files, safety, note, kind, mode] of OTHER_FINDINGS) {
+    rows.push({ id: rows.length, category, path, name: path.split("\\").at(-1)!, size: mb * MB, files, safety, note, kind, mode });
+  }
+  return rows;
+}
+
+/** The demo projects with the artifacts still left, like Rust's `projects` command. */
+function makeProjects(findings: FindingRow[]): ProjectRow[] {
+  const now = Math.floor(Date.now() / 1000);
+  return PROJECTS.map((p, id) => {
+    const root = `${CODE}\\${p.name}`;
+    const artifacts = p.artifacts.flatMap(([rel, category, , , , restore]) => {
+      const path = `${root}\\${rel}`;
+      const f = findings.find((x) => x.path === path);
+      if (!f) return [];
+      const label = CATEGORIES.find(([c]) => c === category)?.[1] ?? category;
+      return [{ id: f.id, path, rel, label, size: f.size, files: f.files, safety: f.safety, note: f.note, restore }];
+    });
+    const cleanable = artifacts.reduce((n, a) => n + a.size, 0);
+    return {
+      id,
+      name: p.name,
+      path: root,
+      kinds: p.kinds,
+      size: cleanable + p.ownMb * MB,
+      files: p.files,
+      cleanable,
+      last_active: now - p.days * 86400,
+      dormant: p.days > 90,
+      branch: p.branch,
+      artifacts,
+    };
+  });
+}
 
 /** Deterministic pseudo-random numbers, so the mock looks the same on every reload. */
 function rng(seed: number) {
@@ -31,89 +155,14 @@ function rng(seed: number) {
   };
 }
 
-function makeFindings(): FindingRow[] {
-  const rand = rng(7);
-  const projects = ["web-shop", "api", "logcleaner", "dashboard", "mobile", "docs-site", "ml-lab", "game"];
-  const rows: FindingRow[] = [];
-  let id = 0;
-  for (const [category, , , , safety] of CATEGORIES) {
-    const n = category === "LargeFiles" ? 12 : category === "LogFiles" ? 160 : 40 + Math.floor(rand() * 220);
-    for (let i = 0; i < n; i++) {
-      const p = projects[Math.floor(rand() * projects.length)];
-      const name =
-        category === "LargeFiles" ? `backup-${i}.iso` : category === "LogFiles" ? `server-${i}.log` : category === "NodeModules" ? "node_modules" : `target-${i}`;
-      const path = `C:\\Users\\demo\\projects\\${p}\\packages\\module-${i}\\${name}`;
-      const size = category === "LargeFiles" ? (0.6 + rand() * 6) * GB : rand() ** 3 * 2 * GB + rand() * 40 * MB;
-      const protectedRow = category === "LargeFiles" && i === 0;
-      rows.push({
-        id: id++,
-        category,
-        path,
-        name,
-        size: Math.round(size),
-        files: Math.floor(rand() * 40000),
-        safety: protectedRow ? "protected" : safety,
-        note: protectedRow ? "Inside a .git folder - deleting it loses history." : `Mock note for ${name}.`,
-        kind: category === "LargeFiles" || category === "LogFiles" ? "file" : "dir",
-        mode: category === "UserTemp" ? "contents" : "whole",
-      });
-    }
-  }
-  return rows;
-}
-
-/** Groups the findings still left by their project folder, like Rust's `projects::analyze`. */
-function makeProjects(findings: FindingRow[]): ProjectRow[] {
-  const kinds: Record<string, string[]> = {
-    "web-shop": ["Node.js"],
-    api: ["Rust"],
-    logcleaner: ["Python"],
-    dashboard: ["Node.js"],
-    mobile: ["Flutter", "Node.js"],
-    "docs-site": ["Node.js"],
-    "ml-lab": ["Python"],
-    game: [".NET"],
-  };
-  const daysAgo = [1, 3, 800, 12, 210, 45, 400, 95];
-  return Object.keys(kinds).map((name, id) => {
-    const path = `C:\\Users\\demo\\projects\\${name}`;
-    const artifacts = findings
-      .filter((f) => f.path.startsWith(`${path}\\`) && ["BuildArtifacts", "NodeModules", "LogFiles"].includes(f.category))
-      .slice(0, 30)
-      .map((f) => ({
-        id: f.id,
-        path: f.path,
-        rel: f.path.slice(path.length + 1),
-        label: f.category === "NodeModules" ? "node_modules" : f.category === "LogFiles" ? "Log files" : "Build output & dev caches",
-        size: f.size,
-        files: f.files,
-        safety: f.safety,
-        note: f.safety === "safe" ? f.note : "Committed to git - it will show up as deleted files until you restore or commit it",
-        restore: f.category === "NodeModules" ? "pnpm install" : f.safety === "safe" ? "Rebuilt by your next build." : `git restore ${f.name}`,
-      }))
-      .sort((a, b) => b.size - a.size);
-    const cleanable = artifacts.reduce((n, a) => n + a.size, 0);
-    return {
-      id,
-      name,
-      path,
-      kinds: kinds[name],
-      size: cleanable + (id + 1) * 180 * MB,
-      files: (id + 1) * 21_000,
-      cleanable,
-      last_active: Math.floor(Date.now() / 1000) - daysAgo[id] * 86400,
-      dormant: daysAgo[id] > 90,
-      branch: id === 2 ? null : id === 5 ? "feature/search-box" : "main",
-      artifacts,
-    };
-  });
-}
-
 /** A fake folder tree: every folder's children are derived from its path, so drilling down is stable. */
 function usageLevel(path: string, size: number): UsageLevel {
+  // The top level matches the demo projects' total; deeper levels are made up from the path.
+  const top: Record<string, number> = { code: 27.1, AppData: 74, Downloads: 38, Videos: 52, ".cargo": 6, ".gradle": 9, go: 4, Documents: 21, backups: 44, Pictures: 11 };
+  const isTop = path === HOME;
   const rand = rng([...path].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 100000, 1));
-  const names = ["projects", "AppData", "Downloads", "Videos", "node_modules", "target", ".cache", "Documents", "backups", "games"];
-  const n = path.split("\\").length > 6 ? 0 : 4 + Math.floor(rand() * 6);
+  const names = ["code", "AppData", "Downloads", "Videos", ".cargo", ".gradle", "go", "Documents", "backups", "Pictures"];
+  const n = isTop ? names.length : path.split("\\").length > 6 ? 0 : 4 + Math.floor(rand() * 6);
   const weights = Array.from({ length: n }, () => rand() ** 2 + 0.02);
   const sum = weights.reduce((a, b) => a + b, 0) || 1;
   // One rotation for the whole level keeps sibling names unique, like a real directory.
@@ -121,17 +170,17 @@ function usageLevel(path: string, size: number): UsageLevel {
   const children: UsageRow[] = weights
     .map((w, i) => {
       const name = names[(i + offset) % names.length];
-      const childSize = Math.round((size * 0.9 * w) / sum);
-      const safety: SafetyKey = name === "Documents" ? "protected" : name === "AppData" ? "review" : "safe";
+      const childSize = isTop ? top[name] * GB : Math.round((size * 0.9 * w) / sum);
+      const safety: SafetyKey = ["Documents", "Downloads", "Videos", "Pictures"].includes(name) ? "protected" : "review";
       return {
         name,
         path: `${path}\\${name}`,
         size: childSize,
         files: Math.round(childSize / 400_000),
         has_children: path.split("\\").length < 6,
-        tag: name === "node_modules" ? "node_modules" : name === "target" ? "Build output & dev caches" : null,
+        tag: null,
         safety,
-        note: safety === "protected" ? "Profile folder - delete individual items inside it instead" : "Mock note.",
+        note: safety === "protected" ? "Profile folder - delete individual items inside it instead" : "Your files - review before deleting",
       };
     })
     .sort((a, b) => b.size - a.size);
@@ -222,8 +271,8 @@ export function install() {
   const apps: AppRow[] = ["Visual Studio Code", "Slack", "Zoom", "7-Zip", "Node.js", "Old Toolbar"].map((name, id) => ({
     id,
     name,
-    publisher: id === 2 ? "Zoom Video" : "Mock Inc.",
-    version: "1.0",
+    publisher: ["Microsoft", "Slack Technologies", "Zoom Video", "Igor Pavlov", "OpenJS Foundation", "Unknown"][id],
+    version: ["1.96.2", "4.41.105", "6.3.0", "24.09", "22.12.0", "2.1"][id],
     installed: ["2025-03-14", "2026-02-01", "", "2024-11-30", "2026-09-12", "2023-06-05"][id],
     location: id === 2 ? null : "C:\\Program Files\\" + name,
     size: (id + 1) * 300 * MB,
@@ -256,7 +305,7 @@ export function install() {
         case "init":
           return {
             drives: DRIVES,
-            is_admin: false,
+            is_admin: true,
             scan_on_start: null,
             open_apps: false,
           };
@@ -307,7 +356,7 @@ export function install() {
           return { loading: false, items: [...apps] };
         case "usage": {
           const path = (args as { path: string | null }).path;
-          return usageLevel(path ?? scan.root, path ? Math.round(80 * GB * (path.length % 7 + 1) / 8) : 512 * GB);
+          return usageLevel(path ?? scan.root, path ? Math.round(40 * GB * (path.length % 7 + 1) / 8) : 286 * GB);
         }
         case "scan_leftovers":
           scanLeftovers((args as { appId: number }).appId);

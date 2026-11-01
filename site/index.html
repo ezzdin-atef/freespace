@@ -3,375 +3,693 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Freespace - fast disk cleaner for Windows</title>
-  <meta name="description" content="Freespace scans a whole drive in seconds, shows what is safe to delete, and only removes what you tick and confirm. Free and open source for Windows 10 and 11." />
-  <meta property="og:title" content="Freespace - fast disk cleaner for Windows" />
-  <meta property="og:description" content="Scan a drive in seconds. Delete only what is safe." />
+  <title>Freespace - disk cleaner for Windows developers</title>
+  <meta name="description" content="Freespace finds the gigabytes your projects can rebuild, labels every item Safe, Review or Do not delete, and removes only what you tick and confirm. Free and open source for Windows 10 and 11." />
+  <meta property="og:title" content="Freespace - reclaim your disk, keep your code" />
+  <meta property="og:description" content="node_modules, build output and caches, labelled with how to get them back. Free and open source for Windows." />
+  <meta name="theme-color" content="#4f46e5" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin />
   <style>
+    @font-face { font-family: "Geist"; src: url(fonts/geist.woff2) format("woff2"); font-weight: 400 700; font-display: swap; }
+    @font-face { font-family: "Geist Mono"; src: url(fonts/geist-mono.woff2) format("woff2"); font-weight: 400 600; font-display: swap; }
+
     :root {
-      --bg: #f6f4ee;
-      --bg2: #efece3;
-      --surface: #ffffff;
-      --fg: #1c1c1a;
-      --fg2: #3d3d3a;
-      --mut: #6b6a64;
-      --line: #e3dfd4;
-      --ink: #2c2c2a;
-      --acc: #1d9e75;
-      --acc-hover: #178563;
-      --acc-soft: #dff3eb;
+      --brand: #4f46e5;
+      --brand-dark: #3730a3;
+      --brand-300: #a5b4fc;
+      --brand-200: #c7d2fe;
+      --brand-100: #e0e7ff;
+      --brand-50: #f1f3ff;
+      --ink: #15163a;
+      --text: #474a6e;
+      --line: #e3e5f3;
+      --white: #ffffff;
       --safe: #15803d;
       --safe-bg: #dcfce7;
-      --review: #b45309;
+      --review: #a34a07;
       --review-bg: #fef3c7;
-      --danger: #b91c1c;
+      --danger: #c81e1e;
       --danger-bg: #fee2e2;
-      --shadow: 0 1px 2px rgb(28 28 26 / 0.04), 0 12px 40px -12px rgb(28 28 26 / 0.18);
-      --font: "Inter", "Segoe UI", system-ui, sans-serif;
-      --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+      --sans: "Geist", "Segoe UI", system-ui, sans-serif;
+      --mono: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+      --r-xl: 32px;
+      --r-lg: 24px;
+      --r-md: 16px;
+      --r-sm: 10px;
       color-scheme: light;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #141413;
-        --bg2: #1b1b19;
-        --surface: #1f1f1d;
-        --fg: #f1efe8;
-        --fg2: #d4d2ca;
-        --mut: #9a988f;
-        --line: #2f2f2c;
-        --ink: #f1efe8;
-        --acc: #2bbd8f;
-        --acc-hover: #3fd2a3;
-        --acc-soft: #12352a;
-        --safe: #4ade80;
-        --safe-bg: #14321f;
-        --review: #fbbf24;
-        --review-bg: #3a2c0c;
-        --danger: #f87171;
-        --danger-bg: #3b1616;
-        --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 20px 50px -20px rgb(0 0 0 / 0.7);
-        color-scheme: dark;
-      }
-    }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font: 16px/1.6 var(--font);
-      color: var(--fg);
-      background: var(--bg);
-      -webkit-font-smoothing: antialiased;
-    }
-    a { color: inherit; text-decoration: none; }
-    .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+    html { scroll-behavior: smooth; scrollbar-color: var(--brand-300) var(--brand-50); }
+    body { font: 400 17px/1.55 var(--sans); color: var(--text); background: var(--white); -webkit-font-smoothing: antialiased; }
+    ::selection { background: var(--brand-200); color: var(--ink); }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; border-radius: 8px; }
+    svg { display: block; }
+    code, .mono { font-family: var(--mono); font-size: 0.86em; }
+    .wrap { width: min(1200px, 100% - 40px); margin-inline: auto; }
 
-    /* ---------------------------------------------------------------- nav */
-    nav {
-      position: sticky; top: 0; z-index: 10;
-      background: color-mix(in srgb, var(--bg) 82%, transparent);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid transparent;
-      transition: border-color 0.2s;
-    }
-    nav.scrolled { border-bottom-color: var(--line); }
-    nav .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-    .brand img { width: 30px; height: 30px; }
-    nav .links { margin-left: auto; display: flex; align-items: center; gap: 24px; font-size: 14px; color: var(--mut); }
-    nav .links a:hover { color: var(--fg); }
-    @media (max-width: 640px) { nav .links .hide-sm { display: none; } }
+    h1, h2, h3 { color: var(--ink); font-weight: 600; text-wrap: balance; }
+    h1 { font-size: clamp(44px, 5.6vw, 76px); line-height: 1.02; letter-spacing: -0.04em; }
+    h2 { font-size: clamp(32px, 3.6vw, 48px); line-height: 1.08; letter-spacing: -0.035em; }
+    h3 { font-size: 20px; line-height: 1.25; letter-spacing: -0.015em; }
 
     /* ---------------------------------------------------------------- buttons */
     .btn {
-      display: inline-flex; align-items: center; gap: 10px;
-      height: 52px; padding: 0 24px;
-      border-radius: 12px; border: 1px solid var(--line);
-      font-weight: 600; font-size: 15px;
-      background: var(--surface); color: var(--fg);
-      transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      min-height: 54px; padding: 10px 26px; border-radius: 999px;
+      background: var(--brand); color: var(--white);
+      font-weight: 600; font-size: 16px; text-decoration: none; white-space: nowrap;
+      transition: background 0.15s;
     }
-    .btn:hover { transform: translateY(-1px); }
-    .btn.primary {
-      background: var(--acc); border-color: transparent; color: #fff;
-      box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--acc) 70%, transparent);
-    }
-    .btn.primary:hover { background: var(--acc-hover); }
-    .btn.small { height: 38px; padding: 0 14px; font-size: 14px; border-radius: 10px; }
+    .btn:hover { background: var(--brand-dark); }
+    .btn.soft { background: var(--brand-50); color: var(--brand-dark); }
+    .btn.soft:hover { background: var(--brand-100); }
+    .btn.light { background: var(--white); color: var(--brand-dark); }
+    .btn.light:hover { background: var(--brand-100); }
     .btn svg { flex: none; }
 
+    /* ---------------------------------------------------------------- nav */
+    .nav { display: flex; align-items: center; gap: 28px; height: 76px; font-size: 15px; font-weight: 500; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; color: var(--ink); font-weight: 600; font-size: 18px; letter-spacing: -0.02em; text-decoration: none; }
+    .brand img { width: 32px; height: 32px; display: block; }
+    .nav a:not(.brand):not(.btn) { text-decoration: none; }
+    .nav a:not(.brand):not(.btn):hover { color: var(--brand); }
+    .nav .btn { min-height: 42px; padding: 6px 18px; font-size: 15px; }
+
     /* ---------------------------------------------------------------- hero */
-    .hero { padding: 88px 0 48px; text-align: center; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 12px 6px 8px; border-radius: 999px;
-      background: var(--surface); border: 1px solid var(--line);
-      font-size: 13px; color: var(--mut);
+    .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(32px, 5vw, 72px); align-items: center; padding: clamp(24px, 4vw, 56px) 0 clamp(56px, 7vw, 96px); }
+    .lede { margin-top: 22px; max-width: 34em; font-size: clamp(18px, 1.5vw, 20px); line-height: 1.5; }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .fine { margin-top: 18px; font-size: 14px; }
+
+    /* The interactive drawing: a project's anatomy and what ticking it does to the disk. */
+    .anatomy { padding: clamp(18px, 2.4vw, 30px); border-radius: var(--r-xl); background-color: var(--brand-50); background-image: radial-gradient(var(--brand-200) 1.2px, transparent 1.2px); background-size: 20px 20px; }
+    .root { display: flex; align-items: center; gap: 12px; color: var(--ink); }
+    .root b { font: 600 16px var(--mono); }
+    .root small { display: block; font-size: 13px; color: var(--text); }
+    .tree { position: relative; margin: 8px 0 0 25px; padding: 0; list-style: none; }
+    .tree li { position: relative; padding: 5px 0 5px 26px; }
+    /* Rounded elbows from the folder to each row. */
+    .tree li::before { content: ""; position: absolute; left: 0; top: -2px; width: 22px; height: 34px; border-left: 2px solid var(--brand-300); border-bottom: 2px solid var(--brand-300); border-bottom-left-radius: 12px; }
+    .tree li:not(:last-child)::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 2px solid var(--brand-300); }
+    .row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 10px 14px; border-radius: var(--r-md); background: var(--white); cursor: pointer; transition: background 0.15s; }
+    label.row:hover { background: var(--brand-100); }
+    .row input { appearance: none; width: 22px; height: 22px; margin: 0; border-radius: 7px; background: var(--brand-100); cursor: pointer; display: grid; place-items: center; transition: background 0.12s; }
+    .row input::after { content: ""; width: 11px; height: 6px; border-left: 2.4px solid var(--white); border-bottom: 2.4px solid var(--white); transform: translateY(-1px) rotate(-45deg) scale(0); transition: transform 0.14s; }
+    .row input:checked { background: var(--brand); }
+    .row input:checked::after { transform: translateY(-1px) rotate(-45deg) scale(1); }
+    .row.locked { cursor: default; background: transparent; padding-block: 6px; }
+    .row .name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; color: var(--ink); font: 500 14.5px var(--mono); }
+    .row .size { color: var(--ink); font: 500 14px var(--mono); }
+    .row .how { grid-column: 2 / 4; font: 400 12.5px var(--mono); color: var(--text); }
+    .label { display: inline-block; padding: 1px 9px; border-radius: 999px; font: 600 12px var(--sans); }
+    .label.safe { color: var(--safe); background: var(--safe-bg); }
+    .label.review { color: var(--review); background: var(--review-bg); }
+    .label.keep { color: var(--danger); background: var(--danger-bg); }
+
+    .gauge { margin-top: 20px; padding: 16px 18px; border-radius: var(--r-md); background: var(--ink); color: var(--white); }
+    .gauge-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; font-size: 14px; }
+    .gauge-top output { font: 600 15px var(--mono); color: var(--white); }
+    .gauge-top span { color: #c6c9ee; }
+    .bar { display: flex; gap: 3px; height: 14px; margin-top: 12px; }
+    .bar i { display: block; height: 100%; border-radius: 999px; transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .bar .used { background: var(--brand-300); }
+    .bar .going { background: var(--white); }
+    .bar .free { flex: 1; background: #34366a; }
+    .dim { display: flex; align-items: center; gap: 10px; margin-top: 8px; font: 400 12px var(--mono); color: #c6c9ee; }
+    .dim::before, .dim::after { content: ""; flex: 1; height: 7px; border-bottom: 1px solid #6d70a8; }
+    .dim::before { border-left: 1px solid #6d70a8; }
+    .dim::after { border-right: 1px solid #6d70a8; }
+
+    /* ---------------------------------------------------------------- how it decides */
+    section { padding-block: clamp(56px, 7vw, 104px); }
+    .head { max-width: 40em; }
+    .head p { margin-top: 14px; font-size: 18px; }
+    .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: clamp(32px, 4vw, 56px) 0 0; padding: 0; list-style: none; }
+    .flow li { position: relative; padding-right: 24px; }
+    .flow li:not(:last-child)::after { content: ""; position: absolute; left: 76px; right: 12px; top: 32px; border-top: 2px dashed var(--brand-300); }
+    .node { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 22px; background: var(--brand-50); color: var(--brand); }
+    .flow li.key .node { background: var(--brand); color: var(--white); }
+    .flow h3 { margin-top: 16px; font-size: 18px; }
+    .flow p { margin-top: 6px; font-size: 15px; line-height: 1.45; }
+    .flow code { color: var(--ink); }
+
+    /* ---------------------------------------------------------------- drawings */
+    .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin-top: clamp(32px, 4vw, 56px); }
+    .tile { display: flex; flex-direction: column; gap: 22px; padding: clamp(20px, 2.2vw, 30px); border-radius: var(--r-lg); background: var(--brand-50); min-width: 0; }
+    .tile p { margin-top: 6px; font-size: 15.5px; line-height: 1.45; }
+    .tile .art { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+    .tile .art svg { width: 100%; height: auto; }
+    .s7 { grid-column: span 7; } .s5 { grid-column: span 5; } .s4 { grid-column: span 4; } .s3 { grid-column: span 3; }
+
+    .tile.dark { background: var(--ink); color: #c6c9ee; }
+    .tile.dark h3 { color: var(--white); }
+    .tile.dark code { color: var(--white); }
+
+    .bars { width: 100%; display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+    .bars li { display: grid; grid-template-columns: minmax(96px, 128px) minmax(0, 1fr) 62px; gap: 12px; align-items: center; font: 500 13px var(--mono); color: var(--ink); }
+    .bars .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .track { display: flex; gap: 3px; height: 26px; }
+    .track i { display: block; border-radius: 8px; }
+    .track .own { background: var(--brand-200); flex: none; width: 14px; }
+    .track .re { background: var(--brand); }
+    .track .re.quiet { background: repeating-linear-gradient(135deg, var(--brand) 0 6px, var(--brand-300) 6px 12px); }
+    .bars .v { text-align: right; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font-size: 13px; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .legend i { width: 14px; height: 14px; border-radius: 5px; }
+
+    .gitfile { width: 100%; font: 400 14px/1.3 var(--mono); }
+    .gitfile div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; border-radius: 12px; background: #24265a; color: #e4e6ff; }
+    .gitfile div + div { margin-top: 6px; }
+    .gitfile span:last-child { color: #c6c9ee; text-align: right; }
+    .gitfile .never { background: transparent; box-shadow: inset 0 0 0 2px #4b4e8c; }
+    .gitfile .never span:first-child { text-decoration: line-through; }
+
+    /* ---------------------------------------------------------------- what else it cleans */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin: 0; padding: 0; list-style: none; }
+    .chips li { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: var(--white); color: var(--ink); font: 500 13.5px var(--mono); }
+    .chips li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--safe); }
+    .chips li.look::before { background: #d97706; }
+    .logs { width: 100%; font: 400 13.5px/1.35 var(--mono); }
+    .logs div { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) 72px; gap: 4px 14px; align-items: center; padding: 10px 14px; border-radius: 12px; background: #24265a; color: #e4e6ff; }
+    .logs div + div { margin-top: 6px; }
+    .logs .why { color: #c6c9ee; }
+    .logs .label { justify-self: end; }
+    .logs .label.skip { background: #34366a; color: #e4e6ff; }
+    .also { margin-top: 16px; border-radius: var(--r-lg); background: var(--brand-50); padding: 8px clamp(16px, 2.4vw, 32px); }
+    .also > div { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) 72px; gap: 4px 28px; align-items: center; padding: 16px 0; }
+    .also > div + div { border-top: 2px solid var(--white); }
+    .also h3 { font-size: 17px; }
+    .also .label { justify-self: end; }
+    .also p { font-size: 15.5px; line-height: 1.45; }
+    .fullclean { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; margin-top: 16px; padding: clamp(20px, 2.2vw, 30px); border-radius: var(--r-lg); background: var(--brand); color: #e4e5ff; }
+    .fullclean h3 { color: var(--white); }
+    .fullclean p { margin-top: 4px; font-size: 15.5px; line-height: 1.45; }
+    .fullclean code { color: var(--white); }
+    .fullclean .node { background: var(--white); color: var(--brand); }
+
+    /* ---------------------------------------------------------------- labels */
+    .spec { margin-top: clamp(32px, 4vw, 56px); border-radius: var(--r-lg); background: var(--brand-50); padding: 8px clamp(16px, 2.4vw, 32px); }
+    .spec > div { display: grid; grid-template-columns: 170px minmax(0, 3fr) minmax(0, 4fr); gap: 8px 28px; align-items: center; padding: 22px 0; }
+    .spec > div + div { border-top: 2px solid var(--white); }
+    .spec .label { font-size: 15px; padding: 4px 14px; justify-self: start; }
+    .spec .ex { font-size: 13.5px; color: var(--ink); font-family: var(--mono); line-height: 1.5; }
+
+    /* ---------------------------------------------------------------- spec sheet */
+    .sheet { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+    dl { display: grid; grid-template-columns: minmax(110px, 170px) minmax(0, 1fr); margin: 0; }
+    dt, dd { margin: 0; padding: 14px 0; border-top: 2px solid var(--brand-100); }
+    dt { font: 500 13.5px/1.6 var(--mono); color: var(--brand-dark); }
+    dd { color: var(--ink); }
+
+    /* ---------------------------------------------------------------- close */
+    .close { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 56px); align-items: center; padding: clamp(32px, 5vw, 72px); border-radius: var(--r-xl); background: var(--brand); color: #e4e5ff; }
+    .close h2 { color: var(--white); font-size: clamp(38px, 5vw, 68px); }
+    .close p { margin-top: 16px; max-width: 34em; }
+    .close .cta { margin-top: 26px; }
+    .close a.plain { align-self: center; color: var(--white); font-weight: 500; text-underline-offset: 4px; }
+    .close :focus-visible { outline-color: var(--white); }
+    footer { padding: clamp(40px, 5vw, 64px) 0 32px; font-size: 15px; }
+    .foot-top { display: grid; grid-template-columns: minmax(0, 5fr) repeat(3, minmax(0, 2fr)); gap: 32px clamp(24px, 4vw, 56px); }
+    .foot-brand p { margin-top: 14px; max-width: 30em; }
+    .foot-col h3 { font: 500 13px var(--mono); letter-spacing: 0; color: var(--brand-dark); }
+    .foot-col ul { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+    .foot-col a { color: var(--ink); text-decoration: none; }
+    .foot-col a:hover { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+    .foot-end { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 28px; margin-top: clamp(32px, 4vw, 48px); padding-top: 22px; border-top: 2px solid var(--brand-100); font-size: 14px; }
+    .foot-end a { color: var(--ink); text-underline-offset: 3px; }
+    .made { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
+    .made svg { flex: none; }
+
+    /* ---------------------------------------------------------------- narrower */
+    @media (max-width: 1020px) {
+      .hero, .close, .sheet { grid-template-columns: minmax(0, 1fr); }
+      .flow { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+      .flow li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 0 16px; padding-right: 0; }
+      .flow li .node { grid-row: span 2; }
+      .flow h3 { margin-top: 2px; }
+      .flow p { margin-top: 2px; }
+      .flow li:not(:last-child)::after { left: 31px; right: auto; top: 70px; bottom: -14px; border-top: 0; border-left: 2px dashed var(--brand-300); }
+      .s7, .s5 { grid-column: span 12; }
+      .foot-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .foot-brand { grid-column: 1 / -1; }
+      .s4, .s3 { grid-column: span 6; }
     }
-    .badge b { padding: 2px 8px; border-radius: 999px; background: var(--acc-soft); color: var(--acc); font-weight: 600; }
-    h1 {
-      margin: 24px auto 0; max-width: 820px;
-      font-size: clamp(40px, 7vw, 72px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 800;
+    @media (max-width: 700px) {
+      .nav .hide-sm { display: none; }
+      .s4, .s3 { grid-column: span 12; }
+      .spec > div { grid-template-columns: minmax(0, 1fr); }
+      .also > div { grid-template-columns: minmax(0, 1fr) auto; }
+      .also > div p { grid-column: 1 / 3; grid-row: 2; }
+      .logs div { grid-template-columns: minmax(0, 1fr) auto; }
+      .logs .why { grid-column: 1 / 3; grid-row: 2; }
+      .cta .btn { flex: 1 1 100%; }
+      .close { padding: 28px 22px; }
+      .tree { margin-left: 14px; }
+      .tree li { padding-left: 18px; }
+      .tree li::before { width: 14px; }
+      .row { padding: 10px; gap: 2px 10px; }
+      .bars li { grid-template-columns: 92px minmax(0, 1fr) 56px; gap: 8px; }
     }
-    h1 em { font-style: normal; color: var(--acc); }
-    .lede { margin: 22px auto 0; max-width: 600px; font-size: clamp(17px, 2.2vw, 19px); color: var(--mut); }
-    .cta { margin-top: 36px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-    .meta { margin-top: 16px; font-size: 13px; color: var(--mut); }
-    .meta span + span::before { content: "\00b7"; margin: 0 8px; }
-
-    /* ---------------------------------------------------------------- app mock */
-    .shot { margin: 56px auto 0; max-width: 1000px; perspective: 2000px; }
-    .window {
-      border-radius: 14px; overflow: hidden; text-align: left;
-      background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
-      font-size: 13px;
-    }
-    .titlebar { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 16px; border-bottom: 1px solid var(--line); }
-    .titlebar .logo { width: 24px; height: 24px; border-radius: 6px; background: var(--ink); display: grid; place-items: center; }
-    .titlebar .logo svg { color: var(--bg); }
-    .titlebar b { font-size: 14px; }
-    .pill-btn { height: 28px; padding: 0 12px; border-radius: 6px; display: inline-flex; align-items: center; font-weight: 600; font-size: 12px; border: 1px solid var(--line); color: var(--fg2); }
-    .pill-btn.go { background: var(--acc); color: #fff; border-color: transparent; }
-    .titlebar .grow { flex: 1; }
-    .titlebar .mut { color: var(--mut); font-size: 12px; }
-    .app { display: grid; grid-template-columns: 220px 1fr; min-height: 360px; }
-    .side { padding: 12px; border-right: 1px solid var(--line); background: var(--bg2); }
-    .side h6 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mut); margin: 12px 8px 6px; font-weight: 600; }
-    .side .row { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 6px; color: var(--fg2); }
-    .side .row span:last-child { color: var(--mut); font-family: var(--mono); font-size: 11px; }
-    .side .row.on { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
-    .main { padding: 20px 24px; }
-    .main h3 { font-size: 20px; letter-spacing: -0.02em; }
-    .main .sub { color: var(--mut); margin-top: 2px; }
-    .bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; margin: 18px 0 20px; background: var(--bg2); }
-    .bar i { display: block; height: 100%; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 9px 4px; border-top: 1px solid var(--line); white-space: nowrap; }
-    td.path { font-family: var(--mono); font-size: 11.5px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; max-width: 0; width: 100%; }
-    td.size { text-align: right; font-family: var(--mono); font-size: 12px; padding-left: 16px; }
-    .box { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--line); display: inline-block; vertical-align: -2px; }
-    .box.on { background: var(--acc); border-color: var(--acc); position: relative; }
-    .box.on::after { content: ""; position: absolute; left: 3.5px; top: 0.5px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-    .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-    .tag.safe { background: var(--safe-bg); color: var(--safe); }
-    .tag.review { background: var(--review-bg); color: var(--review); }
-    .tag.no { background: var(--danger-bg); color: var(--danger); }
-    @media (max-width: 760px) {
-      .app { grid-template-columns: 1fr; }
-      .side { display: none; }
-      .titlebar .mut, .titlebar .hide-sm { display: none; }
-      td.tagcell { display: none; }
-    }
-
-    /* ---------------------------------------------------------------- sections */
-    section { padding: 96px 0; }
-    .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); }
-    h2 { margin-top: 10px; font-size: clamp(30px, 4.5vw, 44px); line-height: 1.1; letter-spacing: -0.03em; font-weight: 800; max-width: 640px; }
-    .section-lede { margin-top: 14px; color: var(--mut); max-width: 560px; font-size: 17px; }
-
-    .grid { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
-    .card {
-      padding: 24px; border-radius: 16px;
-      background: var(--surface); border: 1px solid var(--line);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-    .card .ico { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--acc-soft); color: var(--acc); }
-    .card h4 { margin-top: 16px; font-size: 17px; letter-spacing: -0.01em; }
-    .card p { margin-top: 6px; color: var(--mut); font-size: 15px; }
-
-    .safety { background: var(--bg2); border-block: 1px solid var(--line); }
-    .levels { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    @media (max-width: 800px) { .levels { grid-template-columns: 1fr; } }
-    .level { padding: 28px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
-    .level .tag { font-size: 13px; padding: 3px 12px; }
-    .level p { margin-top: 14px; color: var(--mut); font-size: 15px; }
-    .level ul { margin-top: 14px; padding-left: 18px; color: var(--fg2); font-size: 14px; }
-    .level li + li { margin-top: 4px; }
-
-    .final { text-align: center; }
-    .final h2 { margin-inline: auto; }
-    .final .section-lede { margin-inline: auto; }
-
-    footer { padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--mut); font-size: 14px; }
-    footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
-    footer a:hover { color: var(--fg); }
-
-    .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
-    .reveal.in { opacity: 1; transform: none; }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .reveal { opacity: 1; transform: none; transition: none; }
-      .btn, .card { transition: none; }
+      .bar i, .row, .row input, .row input::after, .btn { transition: none; }
     }
   </style>
 </head>
 <body>
-  <nav id="nav">
-    <div class="wrap">
+  <div class="wrap">
+    <nav class="nav" aria-label="Main">
       <a class="brand" href="#"><img src="icon.svg" alt="" />Freespace</a>
-      <div class="links">
-        <a class="hide-sm" href="#features">Features</a>
-        <a class="hide-sm" href="#safety">Safety</a>
-        <a href="https://github.com/ezzdin-atef/freespace" aria-label="Freespace on GitHub">GitHub</a>
-        <a class="btn small primary dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download</a>
-      </div>
-    </div>
-  </nav>
+      <a class="hide-sm" href="#how">How it decides</a>
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#cleans">What it cleans</a>
+      <a class="hide-sm" href="#specs">Specs</a>
+      <a href="https://github.com/ezzdin-atef/freespace">GitHub</a>
+      <a class="btn dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download</a>
+    </nav>
 
-  <header class="hero">
-    <div class="wrap">
-      <a class="badge" id="badge" href="https://github.com/ezzdin-atef/freespace/releases/latest"><b>New</b><span id="badge-text">Free and open source</span></a>
-      <h1>Get your disk space back. <em>Safely.</em></h1>
-      <p class="lede">Freespace scans a whole drive in seconds, shows exactly what is safe to delete, and only removes what you tick and confirm.</p>
-      <div class="cta">
-        <a class="btn primary dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5Zm0 13 7.5 1.1v-7H3v5.9Zm8.4 1.2L21 21v-8.4h-9.6v7.1Zm0-15.4v7.2H21V3l-9.6 1.3Z"/></svg>
-          <span id="dl-label">Download for Windows</span>
-        </a>
-        <a class="btn" href="https://github.com/ezzdin-atef/freespace">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
-          View source
-        </a>
+    <header class="hero">
+      <div>
+        <h1>Reclaim your disk. Keep your&nbsp;code.</h1>
+        <p class="lede">Your drive is full of things your projects can rebuild, plus caches, update downloads and logs. Freespace finds them, labels each one with how to get it back, and removes only what you tick.</p>
+        <div class="cta">
+          <a class="btn dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5Zm0 13 7.5 1.1v-7H3v5.9Zm8.4 1.2L21 21v-8.4h-9.6v7.1Zm0-15.4v7.2H21V3l-9.6 1.3Z"/></svg>
+            <span id="dl-label">Download for Windows</span>
+          </a>
+          <a class="btn soft" href="https://github.com/ezzdin-atef/freespace">View source</a>
+        </div>
+        <p class="fine">Free and open source. Windows 10 and 11, 64-bit. <span id="meta-version"></span></p>
       </div>
-      <p class="meta"><span>Windows 10 &amp; 11</span><span id="meta-version">64-bit installer</span><span>Updates itself</span></p>
 
-      <div class="shot reveal">
-        <div class="window" aria-label="Freespace showing the All cleanable page" role="img">
-          <div class="titlebar">
-            <div class="logo"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
-            <b>Freespace</b>
-            <span class="pill-btn hide-sm">C:\ &nbsp;Local disk</span>
-            <span class="pill-btn go">Scan</span>
-            <span class="grow"></span>
-            <span class="mut">1.8M files scanned in 6.2 s</span>
+      <form class="anatomy" id="demo" aria-label="Example: tick parts of a project to see the space they free">
+        <div class="root">
+          <svg width="46" height="38" viewBox="0 0 46 38" aria-hidden="true"><path d="M4 8a6 6 0 0 1 6-6h8.5a5 5 0 0 1 3.6 1.5L26 7.5h10a6 6 0 0 1 6 6V30a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" fill="#4f46e5"/><path d="M4 16a4 4 0 0 1 4-4h30a4 4 0 0 1 4 4v14a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" fill="#818cf8"/></svg>
+          <div><b>storefront/</b><small>Example project. Tick items to try it.</small></div>
+        </div>
+        <ul class="tree">
+          <li><label class="row">
+            <input type="checkbox" data-gb="1.91" checked />
+            <span class="name">node_modules <span class="label safe">Safe</span></span><span class="size">1.9 GB</span>
+            <span class="how">pnpm install</span>
+          </label></li>
+          <li><label class="row">
+            <input type="checkbox" data-gb="0.65" checked />
+            <span class="name">.next <span class="label safe">Safe</span></span><span class="size">648 MB</span>
+            <span class="how">pnpm build</span>
+          </label></li>
+          <li><label class="row">
+            <input type="checkbox" data-gb="0.31" />
+            <span class="name">dist <span class="label review">Review</span></span><span class="size">312 MB</span>
+            <span class="how">committed to git: git restore dist</span>
+          </label></li>
+          <li><div class="row locked">
+            <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="4" y="9.5" width="14" height="10" rx="3.5" fill="#c81e1e"/><path d="M7.5 9.5V7a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#c81e1e" stroke-width="2" stroke-linecap="round"/></svg>
+            <span class="name">src, .git <span class="label keep">Do not delete</span></span><span class="size">310 MB</span>
+          </div></li>
+        </ul>
+        <div class="gauge">
+          <div class="gauge-top">
+            <span>Free after delete</span>
+            <output id="free-after" for="demo">41.6 GB</output>
           </div>
-          <div class="app">
-            <div class="side">
-              <div class="row"><span>Home</span><span></span></div>
-              <h6>Clean up</h6>
-              <div class="row on"><span>All cleanable</span><span>38.4 GB</span></div>
-              <div class="row"><span>node_modules</span><span>14.2 GB</span></div>
-              <div class="row"><span>Developer caches</span><span>9.1 GB</span></div>
-              <div class="row"><span>Windows Update</span><span>6.3 GB</span></div>
-              <div class="row"><span>Browser caches</span><span>4.0 GB</span></div>
-              <div class="row"><span>Temp files</span><span>3.2 GB</span></div>
-              <div class="row"><span>Crash dumps</span><span>1.6 GB</span></div>
-              <h6>Explore</h6>
-              <div class="row"><span>Space usage</span><span></span></div>
-              <div class="row"><span>Large files</span><span>212</span></div>
-            </div>
-            <div class="main">
-              <h3>All cleanable</h3>
-              <p class="sub">38.4 GB in 18,204 items. Tick what to delete.</p>
-              <div class="bar">
-                <i style="width:37%;background:var(--acc)"></i>
-                <i style="width:24%;background:color-mix(in srgb,var(--acc) 70%,var(--bg2))"></i>
-                <i style="width:16%;background:color-mix(in srgb,var(--acc) 45%,var(--bg2))"></i>
-                <i style="width:11%;background:color-mix(in srgb,var(--acc) 28%,var(--bg2))"></i>
-              </div>
-              <table>
-                <tr><td><span class="box on"></span></td><td class="path">C:\Users\you\projects\web-app\node_modules</td><td class="tagcell"><span class="tag safe">Safe</span></td><td class="size">1.42 GB</td></tr>
-                <tr><td><span class="box on"></span></td><td class="path">C:\Users\you\AppData\Local\npm-cache</td><td class="tagcell"><span class="tag safe">Safe</span></td><td class="size">2.87 GB</td></tr>
-                <tr><td><span class="box on"></span></td><td class="path">C:\Windows\SoftwareDistribution\Download</td><td class="tagcell"><span class="tag safe">Safe</span></td><td class="size">6.31 GB</td></tr>
-                <tr><td><span class="box"></span></td><td class="path">C:\Users\you\Downloads\old-backup.zip</td><td class="tagcell"><span class="tag review">Review</span></td><td class="size">4.10 GB</td></tr>
-                <tr><td><span class="box"></span></td><td class="path">C:\Users\you\projects\api\.git</td><td class="tagcell"><span class="tag no">Do not delete</span></td><td class="size">310 MB</td></tr>
-              </table>
+          <div class="bar" aria-hidden="true">
+            <i class="used" id="bar-used" style="width: 86%"></i>
+            <i class="going" id="bar-going" style="width: 5%"></i>
+            <i class="free"></i>
+          </div>
+          <div class="dim">C:\ 476 GB</div>
+        </div>
+      </form>
+    </header>
+  </div>
+
+  <main class="wrap">
+    <section id="how" style="padding-top: 0">
+      <div class="head">
+        <h2>How a folder earns its label.</h2>
+        <p>No guessing from folder names alone. Each candidate is checked against the project around it before you ever see it.</p>
+      </div>
+      <ol class="flow">
+        <li>
+          <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="13" cy="13" r="8.5"/><path d="m20 20 6 6"/></svg></div>
+          <h3>Scan</h3>
+          <p>Walks the drive in parallel, without following links.</p>
+        </li>
+        <li>
+          <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 8-6 7 6 7M20 8l6 7-6 7"/></svg></div>
+          <h3>Match</h3>
+          <p><code>target</code> only counts next to <code>Cargo.toml</code>, <code>bin</code> next to a <code>.csproj</code>.</p>
+        </li>
+        <li>
+          <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h20M5 15h12M5 22h8"/><path d="m18 22 3 3 5-6"/></svg></div>
+          <h3>Check</h3>
+          <p>Is there a lockfile? Is it committed to git? Is the path protected?</p>
+        </li>
+        <li>
+          <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a3 3 0 0 1 3-3h7.5a3 3 0 0 1 2.1.9l8.5 8.5a3 3 0 0 1 0 4.2l-7.5 7.5a3 3 0 0 1-4.2 0L4.9 16.6A3 3 0 0 1 4 14.5Z"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/></svg></div>
+          <h3>Label</h3>
+          <p>Safe, Review or Do not delete, with a reason and a restore command.</p>
+        </li>
+        <li class="key">
+          <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 16 6 6 12-14"/></svg></div>
+          <h3>You decide</h3>
+          <p>Nothing goes until you tick and confirm. Each delete is re-checked as it runs.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="features" style="padding-top: 0">
+      <div class="head">
+        <h2>Built for what developers leave behind.</h2>
+      </div>
+      <div class="bento">
+        <article class="tile s7">
+          <div class="art" style="display: block">
+            <ul class="bars" aria-label="Example projects by how much they can rebuild">
+              <li><span class="n">billing-api</span><span class="track"><i class="own"></i><i class="re" style="width: 92%"></i></span><span class="v">6.7 GB</span></li>
+              <li><span class="n">ml-lab</span><span class="track"><i class="own"></i><i class="re quiet" style="width: 58%"></i></span><span class="v">4.2 GB</span></li>
+              <li><span class="n">dashboard</span><span class="track"><i class="own"></i><i class="re" style="width: 51%"></i></span><span class="v">3.7 GB</span></li>
+              <li><span class="n">mobile-app</span><span class="track"><i class="own"></i><i class="re quiet" style="width: 45%"></i></span><span class="v">3.3 GB</span></li>
+              <li><span class="n">docs-site</span><span class="track"><i class="own"></i><i class="re quiet" style="width: 27%"></i></span><span class="v">2.0 GB</span></li>
+            </ul>
+            <div class="legend" aria-hidden="true">
+              <span><i style="background: var(--brand-200)"></i>Your files</span>
+              <span><i style="background: var(--brand)"></i>Can be rebuilt</span>
+              <span><i style="background: repeating-linear-gradient(135deg, var(--brand) 0 4px, var(--brand-300) 4px 8px)"></i>In a project idle 90+ days</span>
+              <span>Example data</span>
             </div>
           </div>
+          <div>
+            <h3>Every project, and what it can rebuild</h3>
+            <p>Node.js, Rust, .NET, Python, Go, Java, Flutter and PHP. Monorepos count once, and one click ticks everything safe in dormant projects.</p>
+          </div>
+        </article>
+
+        <article class="tile dark s5">
+          <div class="art">
+            <div class="gitfile" role="img" aria-label="Freespace reads .git/HEAD, .git/index and .git/logs/HEAD as files, and never starts git.">
+              <div><span>.git/HEAD</span><span>branch</span></div>
+              <div><span>.git/index</span><span>committed paths</span></div>
+              <div><span>.git/logs/HEAD</span><span>last activity</span></div>
+              <div class="never"><span>spawn("git")</span><span>never</span></div>
+            </div>
+          </div>
+          <div>
+            <h3>Reads git without running it</h3>
+            <p>A scan can reach repos you do not trust, and a repo's config can make <code>git status</code> run programs. So Freespace only reads the files.</p>
+          </div>
+        </article>
+
+        <article class="tile s5">
+          <div class="art">
+            <svg viewBox="0 0 440 220" role="img" aria-label="Treemap drawing of folders sized by how much space they take.">
+              <rect x="0" y="0" width="186" height="220" rx="18" fill="#4f46e5"/>
+              <rect x="194" y="0" width="134" height="124" rx="18" fill="#818cf8"/>
+              <rect x="336" y="0" width="104" height="124" rx="18" fill="#a5b4fc"/>
+              <rect x="194" y="132" width="88" height="88" rx="18" fill="#a5b4fc"/>
+              <rect x="290" y="132" width="72" height="88" rx="18" fill="#c7d2fe"/>
+              <rect x="370" y="132" width="70" height="40" rx="12" fill="#c7d2fe"/>
+              <rect x="370" y="180" width="70" height="40" rx="12" fill="#e0e7ff"/>
+              <g font-family="Geist Mono, monospace" font-size="14" font-weight="500">
+                <text x="18" y="34" fill="#fff">AppData</text><text x="18" y="54" fill="#e0e7ff" font-size="12">74 GB</text>
+                <text x="210" y="34" fill="#15163a">Videos</text><text x="210" y="54" fill="#15163a" font-size="12">52 GB</text>
+                <text x="350" y="34" fill="#15163a">backups</text>
+                <text x="208" y="162" fill="#15163a">code</text>
+                <text x="304" y="162" fill="#15163a">.cargo</text>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <h3>See where it went</h3>
+            <p>Browse folders biggest-first beside a treemap, and tick any folder that is not protected.</p>
+          </div>
+        </article>
+
+        <article class="tile s3">
+          <div class="art">
+            <svg viewBox="0 0 240 180" role="img" aria-label="Three file icons of decreasing size, two labelled vhdx and iso.">
+              <path d="M10 22a14 14 0 0 1 14-14h58l38 38v112a14 14 0 0 1-14 14H24a14 14 0 0 1-14-14Z" fill="#4f46e5"/><path d="M82 8v24a14 14 0 0 0 14 14h24Z" fill="#818cf8"/>
+              <path d="M132 70a10 10 0 0 1 10-10h34l24 24v76a12 12 0 0 1-12 12h-44a12 12 0 0 1-12-12Z" fill="#818cf8"/><path d="M176 60v14a10 10 0 0 0 10 10h14Z" fill="#c7d2fe"/>
+              <path d="M208 122a7 7 0 0 1 7-7h9l14 14v36a7 7 0 0 1-7 7h-16a7 7 0 0 1-7-7Z" fill="#c7d2fe"/>
+              <g font-family="Geist Mono, monospace" font-weight="600" fill="#fff"><text x="30" y="118" font-size="20">.vhdx</text><text x="143" y="130" font-size="15">.iso</text></g>
+            </svg>
+          </div>
+          <div>
+            <h3>Large files</h3>
+            <p>Old ISOs, virtual disks and archives, wherever they hide.</p>
+          </div>
+        </article>
+
+        <article class="tile s4">
+          <div class="art">
+            <svg viewBox="0 0 320 180" role="img" aria-label="An app tile with dashed lines leading to the folders it leaves behind.">
+              <rect x="6" y="46" width="88" height="88" rx="24" fill="#4f46e5"/>
+              <path d="M34 90h32M50 74v32" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+              <g fill="none" stroke="#818cf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"><path d="M100 76c40 0 44-46 86-46"/><path d="M100 90h86"/><path d="M100 104c40 0 44 46 86 46"/></g>
+              <g fill="#a5b4fc"><path d="M196 18a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/><path d="M196 78a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/><path d="M196 138a8 8 0 0 1 8-8h22a6 6 0 0 1 4.2 1.8l4 4h40a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8h-70a8 8 0 0 1-8-8Z"/></g>
+            </svg>
+          </div>
+          <div>
+            <h3>Uninstall all of it</h3>
+            <p>Run the app's own uninstaller, then clear what it left behind, or reset it to fresh.</p>
+          </div>
+        </article>
+
+        <article class="tile s7">
+          <div class="art">
+            <svg viewBox="0 0 640 170" role="img" aria-label="A Windows taskbar tray with the Freespace icon, a tooltip reading 12.4 GB can be cleaned, and a clock dial.">
+              <rect x="200" y="6" width="238" height="48" rx="16" fill="#15163a"/>
+              <path d="M362 54h20l-10 11Z" fill="#15163a"/>
+              <text x="319" y="36" text-anchor="middle" font-family="Geist Mono, monospace" font-size="15" font-weight="500" fill="#fff">12.4 GB can be cleaned</text>
+              <rect x="130" y="82" width="430" height="72" rx="24" fill="#e0e7ff"/>
+              <rect x="156" y="102" width="32" height="32" rx="10" fill="#c7d2fe"/>
+              <rect x="202" y="102" width="32" height="32" rx="10" fill="#c7d2fe"/>
+              <rect x="248" y="102" width="32" height="32" rx="10" fill="#c7d2fe"/>
+              <rect x="350" y="96" width="44" height="44" rx="13" fill="#4f46e5"/>
+              <g fill="#fff"><rect x="360" y="106" width="10" height="10" rx="2.5"/><rect x="374" y="106" width="10" height="10" rx="2.5"/><rect x="360" y="120" width="10" height="10" rx="2.5"/><rect x="375" y="121" width="8" height="8" rx="2" fill="none" stroke="#fff" stroke-width="2"/></g>
+              <text x="430" y="124" font-family="Geist Mono, monospace" font-size="15" font-weight="500" fill="#15163a">09:41</text>
+              <circle cx="60" cy="112" r="46" fill="#c7d2fe"/>
+              <circle cx="60" cy="112" r="46" fill="none" stroke="#4f46e5" stroke-width="8"/>
+              <path d="M60 88v24l16 10" fill="none" stroke="#15163a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h3>Keeps watch from the tray</h3>
+            <p>Close the window and it stays in the tray. It repeats your last scan on the schedule you pick, from 30 minutes to a day, and waits while you are working. A rescan only reads the disk.</p>
+          </div>
+        </article>
+
+        <article class="tile s5">
+          <div class="art">
+            <svg viewBox="0 0 360 170" role="img" aria-label="A recycle bin with an arrow curving back out of it.">
+              <rect x="112" y="46" width="136" height="16" rx="8" fill="#4f46e5"/>
+              <rect x="158" y="30" width="44" height="20" rx="8" fill="#4f46e5"/>
+              <path d="M124 70h112l-9 82a14 14 0 0 1-14 12h-66a14 14 0 0 1-14-12Z" fill="#818cf8"/>
+              <g stroke="#e0e7ff" stroke-width="6" stroke-linecap="round"><path d="M158 88l3 56M202 88l-3 56"/></g>
+              <g fill="none" stroke="#4f46e5" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M258 118c44 0 66-22 66-48s-22-46-52-46h-16"/><path d="m272 8-18 16 18 16"/></g>
+            </svg>
+          </div>
+          <div>
+            <h3>Room to change your mind</h3>
+            <p>Send deletions to the Recycle Bin instead, and get a report of what was removed, what was skipped, and how much came back.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="cleans" style="padding-top: 0">
+      <div class="head">
+        <h2>And everything else Windows piles up.</h2>
+        <p>Caches, update downloads, logs and crash dumps from every corner of the drive, grouped by category with their total size.</p>
+      </div>
+      <div class="bento">
+        <article class="tile s7">
+          <div class="art">
+            <ul class="chips" aria-label="Package manager caches. Most are Safe; pnpm, Gradle, Maven, NuGet packages and Playwright browsers are Review.">
+              <li>npm</li><li>Yarn</li><li>Bun</li><li>pip</li><li>uv</li><li>Cargo</li><li>Go</li><li>NuGet cache</li><li>node-gyp</li><li>Electron</li><li>Android SDK</li>
+              <li class="look">pnpm store</li><li class="look">Gradle</li><li class="look">Maven</li><li class="look">NuGet packages</li><li class="look">Playwright</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Package manager caches</h3>
+            <p>These grow quietly across every project you touch. Packages download again the next time a project needs them. Green is Safe; amber is Review, because the next build has more to fetch.</p>
+          </div>
+        </article>
+
+        <article class="tile s5">
+          <div class="art">
+            <svg viewBox="0 0 360 150" role="img" aria-label="A Windows logo tile with a dashed line leading to a stack of downloaded update packages.">
+              <rect x="8" y="24" width="102" height="102" rx="28" fill="#4f46e5"/>
+              <g fill="#fff"><rect x="33" y="49" width="24" height="24" rx="5"/><rect x="61" y="49" width="24" height="24" rx="5"/><rect x="33" y="77" width="24" height="24" rx="5"/><rect x="61" y="77" width="24" height="24" rx="5"/></g>
+              <path d="M122 75h74" fill="none" stroke="#818cf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"/>
+              <path d="m190 63 14 12-14 12" fill="none" stroke="#4f46e5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="224" y="18" width="128" height="32" rx="12" fill="#c7d2fe"/>
+              <rect x="224" y="59" width="128" height="32" rx="12" fill="#a5b4fc"/>
+              <rect x="224" y="100" width="128" height="32" rx="12" fill="#818cf8"/>
+              <g fill="#15163a" font-family="Geist Mono, monospace" font-size="13" font-weight="500"><text x="240" y="39">.cab</text><text x="240" y="80">.msu</text><text x="240" y="121">.psf</text></g>
+            </svg>
+          </div>
+          <div>
+            <h3>Windows Update cache</h3>
+            <p>Downloaded updates in <code>SoftwareDistribution\Download</code> and the Delivery Optimization cache. Windows fetches again whatever it still needs.</p>
+          </div>
+        </article>
+
+        <article class="tile s5">
+          <div class="art">
+            <svg viewBox="0 0 360 170" role="img" aria-label="A browser window whose cached blocks are cleared while a locked row of passwords and cookies stays in place.">
+              <rect x="20" y="6" width="320" height="158" rx="22" fill="#c7d2fe"/>
+              <circle cx="46" cy="30" r="7" fill="#4f46e5"/><circle cx="68" cy="30" r="7" fill="#818cf8"/><circle cx="90" cy="30" r="7" fill="#a5b4fc"/>
+              <rect x="116" y="20" width="204" height="20" rx="10" fill="#fff"/>
+              <rect x="38" y="54" width="284" height="96" rx="14" fill="#fff"/>
+              <g fill="#e0e7ff"><rect x="52" y="66" width="60" height="30" rx="8"/><rect x="120" y="66" width="60" height="30" rx="8"/><rect x="188" y="66" width="60" height="30" rx="8"/><rect x="256" y="66" width="52" height="30" rx="8"/></g>
+              <rect x="52" y="106" width="256" height="32" rx="10" fill="#4f46e5"/>
+              <rect x="66" y="119" width="14" height="11" rx="3" fill="#fff"/><path d="M69 119v-3a4 4 0 0 1 8 0v3" fill="none" stroke="#fff" stroke-width="2"/>
+              <text x="90" y="127" font-family="Geist Mono, monospace" font-size="13" font-weight="500" fill="#fff">passwords, cookies, history</text>
+            </svg>
+          </div>
+          <div>
+            <h3>Browser and app caches</h3>
+            <p>Chrome, Edge, Brave, Firefox and Opera, plus VS Code, Cursor, Discord, Slack, Teams, Spotify and JetBrains IDEs. Passwords, history and cookies are not touched.</p>
+          </div>
+        </article>
+
+        <article class="tile dark s7">
+          <div class="art">
+            <div class="logs" role="img" aria-label="Log file examples: an old log is Safe, a log written this week is Review, a database journal is skipped, and a crash dump is Safe.">
+              <div><span>build-2024.log</span><span class="why">older than 7 days</span><span class="label safe">Safe</span></div>
+              <div><span>server.log</span><span class="why">written this week</span><span class="label review">Review</span></div>
+              <div><span>leveldb\000003.log</span><span class="why">a database journal</span><span class="label skip">Skipped</span></div>
+              <div><span>crash.dmp</span><span class="why">only useful for debugging</span><span class="label safe">Safe</span></div>
+            </div>
+          </div>
+          <div>
+            <h3>Log files and crash dumps</h3>
+            <p>Finds <code>*.log</code> files outside system folders and tells real logs from database journals that only look like logs, because deleting those corrupts data. Also blue-screen dumps and Windows error reports.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="also">
+        <div><h3>Temp files</h3><p>Yours and Windows'. Only the contents go, and files still in use are skipped.</p><span class="label safe">Safe</span></div>
+        <div><h3>GPU and thumbnail caches</h3><p>DirectX, NVIDIA and AMD shader caches, and Explorer's thumbnails and icons. Rebuilt on their own.</p><span class="label safe">Safe</span></div>
+        <div><h3>App update leftovers</h3><p>Older app versions kept after an update, downloaded installers and extracted NVIDIA and AMD drivers.</p><span class="label safe">Safe</span></div>
+        <div><h3>Recycle Bin</h3><p>Files you already deleted, still taking up the space.</p><span class="label safe">Safe</span></div>
+        <div><h3>Windows logs</h3><p>Setup and servicing logs, only useful when troubleshooting Windows.</p><span class="label review">Review</span></div>
+        <div><h3>Previous Windows</h3><p><code>Windows.old</code> and upgrade files. Deleting them removes the option to roll back.</p><span class="label review">Review</span></div>
+      </div>
+
+      <div class="fullclean">
+        <div class="node"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4v5M15 21v5M4 15h5M21 15h5M7.5 7.5l3.5 3.5M19 19l3.5 3.5M22.5 7.5 19 11M11 19l-3.5 3.5"/></svg></div>
+        <div>
+          <h3>Or do it all with Full clean</h3>
+          <p>Previews everything Safe plus Windows rollback leftovers, then runs it or just ticks it for you to review. Optional extras: DISM component store cleanup, and turning off hibernation to remove <code>hiberfil.sys</code>.</p>
         </div>
       </div>
-    </div>
-  </header>
+    </section>
 
-  <section id="features">
-    <div class="wrap">
-      <p class="eyebrow reveal">Features</p>
-      <h2 class="reveal">Everything taking up space, in one place.</h2>
-      <p class="section-lede reveal">Built in Rust for speed, with a clear interface that tells you what each item is and how to get it back.</p>
-      <div class="grid">
-        <div class="card reveal">
-          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-          <h4>Scans in seconds</h4>
-          <p>Reads a whole drive in parallel: millions of files with live progress, not a coffee break.</p>
+    <section style="padding-top: 0">
+      <div class="head">
+        <h2>Three labels. One meaning each.</h2>
+      </div>
+      <div class="spec">
+        <div>
+          <span class="label safe">Safe</span>
+          <p>Rebuilt or downloaded again. Fine to delete.</p>
+          <p class="ex">node_modules + lockfile, target, .next, npm cache, Windows Update downloads</p>
         </div>
-        <div class="card reveal">
-          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>
-          <h4>Grouped cleanup</h4>
-          <p>Temp files, caches, build output, node_modules, logs, crash dumps and Windows leftovers, by category.</p>
+        <div>
+          <span class="label review">Review</span>
+          <p>Probably fine, but look first.</p>
+          <p class="ex">node_modules without a lockfile, committed dist, .venv, large files, app leftovers</p>
         </div>
-        <div class="card reveal">
-          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/></svg></div>
-          <h4>Space usage treemap</h4>
-          <p>Browse folders biggest-first and see where the space really went. Tick any folder to remove it.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div>
-          <h4>Large files</h4>
-          <p>Find the forgotten ISOs, videos and archives eating your drive, sorted by size.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
-          <h4>Uninstall apps fully</h4>
-          <p>Remove desktop and Store apps, then clear the folders they leave behind.</p>
-        </div>
-        <div class="card reveal">
-          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></div>
-          <h4>Recycle Bin mode</h4>
-          <p>Send deletions to the Recycle Bin instead, and get a full report after every clean.</p>
+        <div>
+          <span class="label keep">Do not delete</span>
+          <p>Protected. These rows cannot be ticked.</p>
+          <p class="ex">Windows, Program Files, profile folders, every .git</p>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section id="safety" class="safety">
-    <div class="wrap">
-      <p class="eyebrow reveal">Safety first</p>
-      <h2 class="reveal">Every item is labelled before you touch it.</h2>
-      <p class="section-lede reveal">Nothing is deleted until you tick it and confirm. Every delete is checked against the safety rules again right before it runs.</p>
-      <div class="levels">
-        <div class="level reveal">
-          <span class="tag safe">Safe</span>
-          <p>Regenerated automatically or never needed again.</p>
-          <ul><li>Temp files and caches</li><li>Build output and node_modules</li><li>Windows Update downloads</li></ul>
-        </div>
-        <div class="level reveal">
-          <span class="tag review">Review</span>
-          <p>Probably fine to remove, but worth a look first.</p>
-          <ul><li>Large files and old downloads</li><li>Logs and crash dumps</li><li>Leftovers from uninstalled apps</li></ul>
-        </div>
-        <div class="level reveal">
-          <span class="tag no">Do not delete</span>
-          <p>Protected. Freespace will never remove these.</p>
-          <ul><li>Windows and installed programs</li><li>Your profile folders</li><li>Git repositories</li></ul>
+    <section class="sheet" id="specs" style="padding-top: 0">
+      <div class="head">
+        <h2>The technical details.</h2>
+        <p>Nothing about your files leaves your PC.</p>
+      </div>
+      <dl>
+        <dt>platform</dt><dd>Windows 10 and 11, 64-bit</dd>
+        <dt>engine</dt><dd>Rust, with a parallel disk walk</dd>
+        <dt>interface</dt><dd>Tauri 2 and Svelte 5, a small native app</dd>
+        <dt>permissions</dt><dd>Asks for administrator at launch, so system caches can be cleaned. Say no and it still runs.</dd>
+        <dt>network</dt><dd>Only checks GitHub for its own signed updates</dd>
+        <dt>tracking</dt><dd>None. No account, no ads, no telemetry.</dd>
+        <dt>license</dt><dd>MIT, <a href="https://github.com/ezzdin-atef/freespace">source on GitHub</a></dd>
+      </dl>
+    </section>
+
+    <div class="close">
+      <div>
+        <h2>Get the space back.</h2>
+        <p>Free and open source. Scan first and delete nothing if you like.</p>
+        <div class="cta">
+          <a class="btn light dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download Freespace</a>
+          <a class="plain" href="https://github.com/ezzdin-atef/freespace/releases">All releases</a>
         </div>
       </div>
+      <svg viewBox="0 0 420 210" aria-hidden="true">
+        <rect x="6" y="20" width="408" height="170" rx="28" fill="#3730a3"/>
+        <rect x="34" y="48" width="352" height="30" rx="15" fill="#fff"/>
+        <rect x="34" y="48" width="120" height="30" rx="15" fill="#a5b4fc"/>
+        <g fill="#818cf8"><rect x="34" y="104" width="190" height="14" rx="7"/><rect x="34" y="132" width="130" height="14" rx="7"/></g>
+        <circle cx="352" cy="130" r="22" fill="#4f46e5"/><circle cx="352" cy="130" r="8" fill="#e0e7ff"/>
+      </svg>
     </div>
-  </section>
 
-  <section class="final">
-    <div class="wrap">
-      <h2 class="reveal">Free up gigabytes in a minute.</h2>
-      <p class="section-lede reveal">Free, open source, no account, no ads. Installs per user and keeps itself up to date.</p>
-      <div class="cta reveal">
-        <a class="btn primary dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download Freespace</a>
-        <a class="btn" href="https://github.com/ezzdin-atef/freespace/releases">All releases</a>
+    <footer>
+      <div class="foot-top">
+        <div class="foot-brand">
+          <a class="brand" href="#"><img src="icon.svg" alt="" />Freespace</a>
+          <p>A fast, safety-first disk cleaner for Windows. Free and open source, with nothing about your files leaving your PC.</p>
+        </div>
+        <nav class="foot-col" aria-label="Product">
+          <h3>product</h3>
+          <ul>
+            <li><a class="dl" href="https://github.com/ezzdin-atef/freespace/releases/latest/download/Freespace-setup.exe">Download</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#cleans">What it cleans</a></li>
+            <li><a href="#specs">Specs</a></li>
+          </ul>
+        </nav>
+        <nav class="foot-col" aria-label="Project">
+          <h3>project</h3>
+          <ul>
+            <li><a href="https://github.com/ezzdin-atef/freespace">Source code</a></li>
+            <li><a href="https://github.com/ezzdin-atef/freespace/releases">Releases</a></li>
+            <li><a href="https://github.com/ezzdin-atef/freespace/issues/new">Report a bug</a></li>
+            <li><a href="https://github.com/ezzdin-atef/freespace/blob/main/LICENSE">MIT license</a></li>
+          </ul>
+        </nav>
+        <nav class="foot-col" aria-label="Built with">
+          <h3>built with</h3>
+          <ul>
+            <li><a href="https://www.rust-lang.org">Rust</a></li>
+            <li><a href="https://tauri.app">Tauri</a></li>
+            <li><a href="https://svelte.dev">Svelte</a></li>
+          </ul>
+        </nav>
       </div>
-    </div>
-  </section>
-
-  <footer>
-    <div class="wrap">
-      <a class="brand" href="#"><img src="icon.svg" alt="" />Freespace</a>
-      <span>Made by <a href="https://github.com/ezzdin-atef">Ezzdin Atef</a> &middot; <a href="https://github.com/ezzdin-atef/freespace">Source on GitHub</a></span>
-    </div>
-  </footer>
+      <div class="foot-end">
+        <span>&copy; <span id="year">2026</span> <a href="https://github.com/ezzdin-atef">Ezzdin Atef</a>. Released under the MIT license.</span>
+        <span class="made">Made with
+          <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="love"><path d="M12 21s-8.5-5.2-10-10.3C.9 6.8 3.4 3.5 7 3.5c2 0 3.8 1 5 2.8 1.2-1.8 3-2.8 5-2.8 3.6 0 6.1 3.3 5 7.2C20.5 15.8 12 21 12 21Z" fill="#4f46e5"/></svg>
+          and Rust, by <a href="https://github.com/ezzdin-atef">Ezzdin Atef</a></span>
+      </div>
+    </footer>
+  </main>
 
   <script>
     // Latest release info for the download buttons. The links already point at the newest installer
@@ -387,22 +705,30 @@
         const exe =
           rel.assets.find((a) => a.name === "Freespace-setup.exe") ||
           rel.assets.find((a) => a.name.endsWith("-setup.exe"));
-        const mb = exe ? ` (${(exe.size / 1048576).toFixed(1)} MB)` : "";
+        const mb = exe ? ` (${(exe.size / 1048576).toFixed(1)}\u00a0MB)` : "";
         if (exe) document.querySelectorAll("a.dl").forEach((a) => (a.href = exe.browser_download_url));
         document.getElementById("dl-label").textContent = `Download ${rel.tag_name}${mb}`;
-        document.getElementById("meta-version").textContent = `Released ${new Date(rel.published_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
-        document.getElementById("badge-text").textContent = `${rel.tag_name} is out - see what's new`;
+        document.getElementById("meta-version").textContent = `Released ${new Date(rel.published_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}.`;
       } catch {}
     })();
 
-    const nav = document.getElementById("nav");
-    addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 8), { passive: true });
+    document.getElementById("year").textContent = new Date().getFullYear();
 
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && (e.target.classList.add("in"), io.unobserve(e.target))),
-      { rootMargin: "0px 0px -10% 0px" },
-    );
-    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    // The hero drawing: an example disk with 39 GB free. Ticking items moves them from used to free.
+    const TOTAL = 476;
+    const FREE_NOW = 39;
+    const demo = document.getElementById("demo");
+    const pct = (gb) => `${((gb / TOTAL) * 100).toFixed(2)}%`;
+    function updateDemo() {
+      const going = [...demo.querySelectorAll("input:checked")].reduce((n, i) => n + Number(i.dataset.gb), 0);
+      document.getElementById("free-after").textContent = `${(FREE_NOW + going).toFixed(1)} GB`;
+      // Drawn at ten times scale: a few gigabytes would be a sliver on a 476 GB bar.
+      document.getElementById("bar-going").style.width = pct(going * 10);
+      document.getElementById("bar-used").style.width = pct(TOTAL - FREE_NOW - going * 10);
+    }
+    demo.addEventListener("change", updateDemo);
+    demo.addEventListener("submit", (e) => e.preventDefault());
+    updateDemo();
   </script>
 </body>
 </html>

@@ -28,7 +28,7 @@
   </div>
 
   <div class="split">
-    <UsageBar frac={project.cleanable / Math.max(project.size, 1)} />
+    <UsageBar frac={project.cleanable / Math.max(project.size, 1)} alarm={false} />
     <p class="muted">{fmtSize(project.cleanable)} cleanable of {fmtSize(project.size)}</p>
   </div>
 

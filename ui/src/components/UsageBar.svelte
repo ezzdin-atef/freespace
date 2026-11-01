@@ -1,10 +1,10 @@
 <script lang="ts">
-  /** Fraction filled, 0..1. Turns red above 90%. */
-  let { frac }: { frac: number } = $props();
+  /** Fraction filled, 0..1. Turns red above 90%, unless `alarm` is off: being nearly full is not always bad. */
+  let { frac, alarm = true }: { frac: number; alarm?: boolean } = $props();
   const pct = $derived(Math.min(Math.max(frac, 0), 1) * 100);
 </script>
 
-<div class="bar"><i class:low={frac > 0.9} style:width="{pct}%"></i></div>
+<div class="bar"><i class:low={alarm && frac > 0.9} style:width="{pct}%"></i></div>
 
 <style>
   .bar {
